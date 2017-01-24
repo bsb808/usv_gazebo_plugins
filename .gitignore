@@ -1,3 +1,13 @@
+*~
+*.*~
+*.*#
+
+# Doxygen
+doc/html
+doc/manifest.yaml
+api/html
+api/manifest.yaml
+
 # Compiled Object files
 *.slo
 *.lo

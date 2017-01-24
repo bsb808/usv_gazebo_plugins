@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>usv_gazebo_plugins</name>
+  <version>0.0.1</version>
+  <description>The usv_gazebo_plugins package</description>
+
+  <maintainer email="briansbingham@gmail.com">Brian Bingham</maintainer>
+  <license>GPL</license>
+  <!-- <url type="website">http://wiki.ros.org/usv_gazebo_plugins</url> -->
+  <author email="briansbingham@gmail.com">Brian Bingham</author> -->
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>cmake_modules</depend> 
+  <depend>roscpp</depend>
+  <depend>gazebo</depend>
+  <depend>gazebo_ros</depend>
+  <depend>gazebo_plugins</depend>
+  <depend>gazebo_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>kingfisher_msgs</depend>
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+
+  </export>
+</package>
