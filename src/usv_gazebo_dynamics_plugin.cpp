@@ -61,7 +61,17 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   model_ = _parent;
   world_ = model_->GetWorld();
 
+  // Retrieve model paramters from SDF
+  // Set default values
   node_namespace_ = "";
+  max_force_ = 62.0;
+  xyz_damping_ = 20.0;
+  yaw_damping_ = 20.0;
+  rp_damping_ = 5.0;
+  water_level_ = 0.5;
+  water_density_ = 997.7735;
+  cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
+
   if (_sdf->HasElement("robotNamespace")) 
   {
     node_namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
@@ -78,56 +88,42 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   if (!link)
   {
-    ROS_FATAL("gazebo_ros_kingfisiher plugin error: bodyName: %s does not exist\n", link_name_.c_str());
+    ROS_FATAL("usv_gazebo_dynamics_plugin error: bodyName: %s does not exist\n", link_name_.c_str());
     return;
   }
 
-  if (!_sdf->HasElement("maxForce") || !_sdf->GetElement("maxForce")->GetValue()) {
-    max_force_ = 62.0;
-  } 
-  else {
+  if (_sdf->HasElement("maxForce") && _sdf->GetElement("maxForce")->GetValue())
+  {
     max_force_ = _sdf->GetElement("maxForce")->Get<double>();
   }
 
-  if (!_sdf->HasElement("xyzDampingFactor") || !_sdf->GetElement("xyzDampingFactor")->GetValue()) {
-    xyz_damping_ = 20.0;
-  } 
-  else {
+  if (_sdf->HasElement("xyzDampingFactor") && _sdf->GetElement("xyzDampingFactor")->GetValue()) 
+  {
     xyz_damping_ = _sdf->GetElement("xyzDampingFactor")->Get<double>();
   }
-
-  if (!_sdf->HasElement("yawDampingFactor") || !_sdf->GetElement("yawDampingFactor")->GetValue()) {
-    yaw_damping_ = 20.0;
-  } 
-  else {
+  
+  if (_sdf->HasElement("yawDampingFactor") && _sdf->GetElement("yawDampingFactor")->GetValue()) 
+  {
     yaw_damping_ = _sdf->GetElement("yawDampingFactor")->Get<double>();
   }
 
-  if (!_sdf->HasElement("rolPitDampingFactor") || !_sdf->GetElement("rolPitDampingFactor")->GetValue()) {
-    rp_damping_ = 5.0;
-  } 
-  else {
-    rp_damping_ = _sdf->GetElement("yawDampingFactor")->Get<double>();
+  if (_sdf->HasElement("rolPitDampingFactor") && _sdf->GetElement("rolPitDampingFactor")->GetValue()) 
+  {
+    rp_damping_ = _sdf->GetElement("rolPitDampingFactor")->Get<double>();
   }
 
-  if (!_sdf->HasElement("waterLevel") || !_sdf->GetElement("waterLevel")->GetValue()) {
-    water_level_ = 0.5;
-  } 
-  else {
+  if (_sdf->HasElement("waterLevel") && _sdf->GetElement("waterLevel")->GetValue()) 
+  {
     water_level_ = _sdf->GetElement("waterLevel")->Get<double>();
   }
 
-  if (!_sdf->HasElement("waterDensity") || !_sdf->GetElement("waterDensity")->GetValue()) {
-    water_density_ = 997.7735;
-  } 
-  else {
+  if (_sdf->HasElement("waterDensity") && _sdf->GetElement("waterDensity")->GetValue()) 
+  {
     water_density_ = _sdf->GetElement("waterDensity")->Get<double>();
   }
 
-  if (!_sdf->HasElement("cmdTimeout") || !_sdf->GetElement("cmdTimeout")->GetValue()) {
-    cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
-  } 
-  else {
+  if (_sdf->HasElement("cmdTimeout") && _sdf->GetElement("cmdTimeout")->GetValue()) 
+  {
     cmd_timeout_ = _sdf->GetElement("cmdTimeout")->Get<double>();
   }
   
@@ -142,7 +138,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   int argc = 0;
   char** argv = NULL;
   ros::init(argc, argv, "usv_gazebo", 
-    ros::init_options::NoSigintHandler|ros::init_options::AnonymousName);
+	    ros::init_options::NoSigintHandler|ros::init_options::AnonymousName);
   rosnode_ = new ros::NodeHandle( node_namespace_ );
 
   cmd_drive_sub_ = rosnode_->subscribe("cmd_drive", 1, &UsvPlugin::OnCmdDrive, this );
