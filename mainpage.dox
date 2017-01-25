@@ -2,7 +2,7 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b microstrain_3dm_gx5_45 is a driver for the Lord/Microstrain integrated IMU/GPS sensors.
+\b usv_gazebo_plugins includes Gazebo ROS plugins for simulating unmanned surface vehicles.
 
 \section codeapi Code API
 

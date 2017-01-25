@@ -52,14 +52,35 @@ namespace gazebo
   public:
     UsvPlugin();
     virtual ~UsvPlugin();
+    /*! Loads the model in gets dynamic parameters from SDF. */
     virtual void Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf);
   protected:
+    /*! Callback for Gazebo simulation engine */
     virtual void UpdateChild();
     virtual void FiniChild();
   private:
+    /*! Presumably this would get called when there is a collision, 
+      but not implemented! */
     void OnContact(const std::string &name, const physics::Contact &contact);
+    /*!
+      Callback for Kingfisher Drive commands
+      \param msg Kingfisher Drive message
+    */
     void OnCmdDrive( const kingfisher_msgs::DriveConstPtr &msg);
-    
+
+    /*! ROS spin once */
+    void spin();
+
+    /*! Takes ROS Kingfisher Drive commands and scales them by max thrust 
+      
+      \param cmd ROS drive command
+      \param max_cmd  Maximum value expected for commands - scaling factor
+      \param max_pos  Maximum positive force value
+      \param max_neg  Maximum negative force value
+      \return Value scaled and saturated
+     */
+    double scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg);
+
     /// Parameters
     std::string node_namespace_;
     std::string link_name_;
@@ -83,18 +104,68 @@ namespace gazebo
     // Simulation time of the last update
     common::Time prev_update_time_;
     common::Time last_cmd_drive_time_;  
+    double last_cmd_drive_left_;
+    double last_cmd_drive_right_;
     math::Pose pose;
-    math::Vector3 euler, velocity, acceleration, angular_velocity, angular_acceleration;
-    math::Vector3 inertia;
-    double thrust, turntq;
-    double mass;
-    double max_force_, xyz_damping_, yaw_damping_, rp_damping_, water_level_, water_density_, cmd_timeout_;
-    Eigen::MatrixXd Ma;
+    math::Vector3 euler;
+    math::Vector3 velocity;
+    math::Vector3 acceleration;
+    math::Vector3 angular_velocity_;
+    math::Vector3 angular_acceleration_;
+
+    // Values to set via Plugin Parameters
+    /*! Plugin Parameter: Added mass in surge, X_\dot{u} */
+    double param_X_dot_u_;
+    /*! Plugin Parameter: Added mass in sway, Y_\dot{v} */
+    double param_Y_dot_v_;
+    /*! Plugin Parameter: Added mass in yaw, N_\dot{r}*/
+    double param_N_dot_r_;
+
+    /*! Plugin Parameter: Linear drag in surge */
+    double param_X_u_;
+    /*! Plugin Parameter: Quadratic drag in surge */
+    double param_X_uu_;
+    /*! Plugin Parameter: Linear drag in sway */
+    double param_Y_v_;
+    /*! Plugin Parameter: Quadratic drag in sway */
+    double param_Y_vv_;
+    /*! Plugin Parameter: Linear drag in yaw */
+    double param_N_r_;
+    /*! Plugin Parameter: Quadratic drag in yaw*/
+    double param_N_rr_;
+
+    /*! Plugin Parameter: Maximum (abs val) of Drive commands. typ. +/-1.0 */
+    double param_max_cmd_;
+    /*! Plugin Parameter: Maximum forward force [N] */
+    double param_max_force_fwd_;
+    /*! Plugin Parameter: Maximum reverse force [N] */
+    double param_max_force_rev_;
+
+    /*! Plugin Parameter: Boat width [m] */
+    double param_boat_width_;
+    /*! Plugin Parameter: Horizontal surface area [m^2] */
+    double param_boat_area_ ;
+    /*! Plugin Parameter: Metacentric length [m] */
+    double param_metacentric_length_;
+    /*! Plugin Parameter: Metacentric width[m] */
+    double param_metacentric_width_;
+
+
+    double xyz_damping_;
+    double yaw_damping_;
+    double rp_damping_;
+    /* Water height [m]*/
+    double water_level_;
+    /* Water density [kg/m^3] */
+    double water_density_;
+    /*! Timeout for recieving Drive commands [s]*/
+    double cmd_timeout_;
+    /*! Added mass matrix, 6x6 */
+    Eigen::MatrixXd Ma_;
     
     //tf::TransformBroadcaster transform_broadcaster_;
     sensor_msgs::JointState js_;
-    
-    void spin();
+
     boost::thread *spinner_thread_;
     
     event::ConnectionPtr contact_event_;
