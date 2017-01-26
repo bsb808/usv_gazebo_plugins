@@ -71,6 +71,11 @@ namespace gazebo
     /*! ROS spin once */
     void spin();
 
+    /*! Convenience function for getting SDF parameters 
+
+     */
+    double getSdfParamDouble(sdf::ElementPtr sdfPtr,const std::string &param_name,double default_val);
+
     /*! Takes ROS Kingfisher Drive commands and scales them by max thrust 
       
       \param cmd ROS drive command
@@ -93,13 +98,15 @@ namespace gazebo
     
     ros::Subscriber cmd_drive_sub_;
     
+    /*! Pointer to the Gazebo world, retrieved when the model is loaded */
     physics::WorldPtr world_;
+    /*! Pointer to Gazebo parent model, retrieved when the model is loaded */
     physics::ModelPtr model_;  
-    physics::LinkPtr link;
-    sensors::SensorPtr parent_sensor_;
+    /*! Pointer to model link in gazebo, 
+      optionally specified by the bodyName parameter,
+      The states are taken from this link and forces applied to this link.*/
+    physics::LinkPtr link_;
     
-    /// Speeds of the wheels
-    float wheel_speed_[4];
     
     // Simulation time of the last update
     common::Time prev_update_time_;
@@ -163,8 +170,6 @@ namespace gazebo
     /*! Added mass matrix, 6x6 */
     Eigen::MatrixXd Ma_;
     
-    //tf::TransformBroadcaster transform_broadcaster_;
-    sensor_msgs::JointState js_;
 
     boost::thread *spinner_thread_;
     
@@ -172,6 +177,7 @@ namespace gazebo
     
     // Pointer to the update event connection
     event::ConnectionPtr updateConnection;
+
   };  // class UsvPlugin
 } // namespace gazebo
 
