@@ -136,10 +136,16 @@ namespace gazebo
     double param_Y_v_;
     /*! Plugin Parameter: Quadratic drag in sway */
     double param_Y_vv_;
+    
+    double param_Z_w_;
+    double param_K_p_;
+    double param_M_q_;
+
     /*! Plugin Parameter: Linear drag in yaw */
     double param_N_r_;
     /*! Plugin Parameter: Quadratic drag in yaw*/
     double param_N_rr_;
+
 
     /*! Plugin Parameter: Maximum (abs val) of Drive commands. typ. +/-1.0 */
     double param_max_cmd_;
