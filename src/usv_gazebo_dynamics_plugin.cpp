@@ -101,25 +101,39 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_metacentric_width_ = 0.2;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
 
+  //  Enumerating model
+  ROS_INFO_STREAM("Model name = "<< model_->GetName());
+  physics::Link_V links = model_->GetLinks();
+  for (int ii=0; ii<links.size(); ii++){
+    ROS_INFO_STREAM("Link: "<<links[ii]->GetName());
+  }
+
   // Get parameters from SDF
   if (_sdf->HasElement("robotNamespace")) 
   {
     node_namespace_ = _sdf->GetElement("robotNamespace")->Get<std::string>() + "/";
   }
- if (!_sdf->HasElement("bodyName") || !_sdf->GetElement("bodyName")->GetValue())
-  {
+
+  if (!_sdf->HasElement("bodyName") || !_sdf->GetElement("bodyName")->GetValue())
+  {                       
     link_ = model_->GetLink();
     link_name_ = link_->GetName();
-  }
+  } 
   else {
-    link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
+    link_name_ = _sdf->GetElement("bodyName2")->Get<std::string>();
+    ROS_DEBUG_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
+    ROS_DEBUG_STREAM("test " <<_sdf->GetElement("bodyName2")->Get<std::string>());
     link_ = model_->GetLink(link_name_);
+    ROS_DEBUG_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
   }
-
   if (!link_)
   {
     ROS_FATAL("usv_gazebo_dynamics_plugin error: bodyName: %s does not exist\n", link_name_.c_str());
     return;
+  }
+  else
+  {
+    ROS_INFO_STREAM("USV Model Link Name = " << link_name_);
   }
 
   xyz_damping_ = getSdfParamDouble(_sdf,"xyzDamping",xyz_damping_);
@@ -252,7 +266,9 @@ void UsvPlugin::UpdateChild()
 
   // Get body-centered state information
   math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body);
   math::Vector3 vel_angular_body = link_->GetRelativeAngularVel();
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body);
   math::Vector3 accel_linear_body = link_->GetRelativeLinearAccel();
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel linear: " << accel_linear_body);
   math::Vector3 accel_angular_body = link_->GetRelativeAngularAccel();

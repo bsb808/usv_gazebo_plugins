@@ -2,9 +2,11 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
   <xacro:macro name="usv_gazebo" params="name">
     <!--Gazebo Plugin for simulating Kingfisher dynamics-->
-    <gazebo>
+    <gazebo >
       <!--<plugin name="heron_dynamic" filename="libheron_gazebo_plugins.so">-->
       <plugin name="usv_dynamics_${name}" filename="libusv_gazebo_dynamics_plugin.so">
+	<bodyName2>base_link</bodyName2>
+	<bodyName>base_link</bodyName>
 	<xyzDamping>20.0</xyzDamping>
 	<yawDamping>20.0</yawDamping>
 	<rpDamping>5.0</rpDamping>
@@ -19,7 +21,7 @@
 	<yV>20.0</yV>
 	<yVV>0.0</yVV>
 	<nR>20.0</nR>
-	<nRR>0.0</nRR>
+	<nRR>0.0</nRR> 
 	<maxCmd>1.0</maxCmd>
 	<maxForceFwd>100.0</maxForceFwd>
 	<maxForceRev>-100.0</maxForceRev>

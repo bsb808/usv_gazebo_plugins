@@ -24,14 +24,11 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef USV_GAZEBO_DYNAMICS_H
 #define USV_GAZEBO_DYNAMICS_H
 
-#include "gazebo/physics/physics.hh"
-#include "gazebo/physics/PhysicsTypes.hh"
-#include "gazebo/sensors/SensorTypes.hh"
-#include "gazebo/transport/TransportTypes.hh"
-#include "gazebo/common/Time.hh"
-#include "gazebo/common/Plugin.hh"
-#include "gazebo/common/Events.hh"
-
+// Gazebo
+#include <gazebo/common/common.hh>
+#include <gazebo/physics/physics.hh>
+#include <gazebo_plugins/gazebo_ros_utils.h>
+//ROS
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistWithCovariance.h>
 #include <geometry_msgs/PoseWithCovariance.h>
@@ -98,6 +95,10 @@ namespace gazebo
     
     ros::Subscriber cmd_drive_sub_;
     
+    GazeboRosPtr gazebo_ros_;
+    physics::ModelPtr parent;
+    event::ConnectionPtr update_connection_;
+
     /*! Pointer to the Gazebo world, retrieved when the model is loaded */
     physics::WorldPtr world_;
     /*! Pointer to Gazebo parent model, retrieved when the model is loaded */
