@@ -95,8 +95,8 @@ namespace gazebo
     
     ros::Subscriber cmd_drive_sub_;
     
-    GazeboRosPtr gazebo_ros_;
-    physics::ModelPtr parent;
+    //GazeboRosPtr gazebo_ros_;
+    //physics::ModelPtr parent;
     event::ConnectionPtr update_connection_;
 
     /*! Pointer to the Gazebo world, retrieved when the model is loaded */
@@ -111,6 +111,8 @@ namespace gazebo
     
     // Simulation time of the last update
     common::Time prev_update_time_;
+    math::Vector3 prev_lin_vel_;
+    math::Vector3 prev_ang_vel_;
     common::Time last_cmd_drive_time_;  
     double last_cmd_drive_left_;
     double last_cmd_drive_right_;

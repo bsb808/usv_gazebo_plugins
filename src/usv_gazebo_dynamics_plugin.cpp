@@ -120,9 +120,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     link_name_ = link_->GetName();
   } 
   else {
-    link_name_ = _sdf->GetElement("bodyName2")->Get<std::string>();
-    ROS_DEBUG_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
-    ROS_DEBUG_STREAM("test " <<_sdf->GetElement("bodyName2")->Get<std::string>());
+    link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
     link_ = model_->GetLink(link_name_);
     ROS_DEBUG_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
   }
@@ -150,6 +148,9 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_X_uu_ = getSdfParamDouble(_sdf,"xUU",param_X_uu_);
   param_Y_v_ = getSdfParamDouble(_sdf,"yV",param_Y_v_);
   param_Y_vv_ = getSdfParamDouble(_sdf,"yVV",param_Y_vv_);
+  param_Z_w_ = getSdfParamDouble(_sdf,"zW",param_Z_w_);
+  param_K_p_ = getSdfParamDouble(_sdf,"kP",param_K_p_);
+  param_M_q_ = getSdfParamDouble(_sdf,"mQ",param_M_q_);
   param_N_r_ = getSdfParamDouble(_sdf,"nR",param_N_r_);
   param_N_rr_ = getSdfParamDouble(_sdf,"nRR",param_N_rr_);
 
@@ -264,14 +265,19 @@ void UsvPlugin::UpdateChild()
   pose = link_->GetWorldPose();
   euler = pose.rot.GetAsEuler();
 
-  // Get body-centered state information
+  // Get body-centered linear and angular rates
   math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body);
   math::Vector3 vel_angular_body = link_->GetRelativeAngularVel();
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body);
-  math::Vector3 accel_linear_body = link_->GetRelativeLinearAccel();
+  // Estimate the linear and angular accelerations.
+  // Note the the GetRelativeLinearAccel() and AngularAccel() functions
+  // appear to be unreliable
+  math::Vector3 accel_linear_body = (vel_linear_body - prev_lin_vel_) /dt;
+  prev_lin_vel_ = vel_linear_body;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel linear: " << accel_linear_body);
-  math::Vector3 accel_angular_body = link_->GetRelativeAngularAccel();
+  math::Vector3 accel_angular_body = (vel_angular_body - prev_ang_vel_) /dt;
+  prev_ang_vel_ = vel_angular_body;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel angular: " << accel_angular_body);
 
   // Create state and derivative of state
@@ -287,6 +293,15 @@ void UsvPlugin::UpdateChild()
   Eigen::VectorXd amassVec = -1.0*Ma_*state_dot;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"state_dot: \n" << state_dot);
   ROS_DEBUG_STREAM_THROTTLE(1.0,"amassVec :\n" << amassVec);
+  
+  // Coriolis - added mass components
+  Eigen::MatrixXd Cmat = Eigen::MatrixXd::Zero(6,6);
+  Cmat(0,5) = param_Y_dot_v_ * vel_linear_body.y;
+  Cmat(1,5) = param_X_dot_u_ * vel_linear_body.x;
+  Cmat(5,0) = param_Y_dot_v_ * vel_linear_body.y;
+  Cmat(5,1) = param_X_dot_u_ * vel_linear_body.x;
+  Eigen::VectorXd Cvec = -1.0*Cmat*state;
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"Cvec :\n" << Cvec);
 
   // Drag
   //Eigen::MatrixXd Dmat = Eigen::MatrixXd(6,6);
