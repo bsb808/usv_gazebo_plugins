@@ -26,7 +26,8 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 // Gazebo
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
-#include <gazebo_plugins/gazebo_ros_utils.h>
+//#include <gazebo_plugins/gazebo_ros_utils.h>
+
 //ROS
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistWithCovariance.h>
