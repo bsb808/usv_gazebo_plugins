@@ -20,7 +20,6 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
 #include <boost/thread.hpp>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/JointState.h>

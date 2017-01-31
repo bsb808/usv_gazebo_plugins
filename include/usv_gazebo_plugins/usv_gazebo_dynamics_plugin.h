@@ -20,7 +20,6 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-
 #ifndef USV_GAZEBO_DYNAMICS_H
 #define USV_GAZEBO_DYNAMICS_H
 
