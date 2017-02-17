@@ -159,6 +159,10 @@ namespace gazebo
 
     /*! Plugin Parameter: Boat width [m] */
     double param_boat_width_;
+    /*! Plugin Parameter: Boat length [m] */
+    double param_boat_length_;
+    /*! Plugin Parameter: Z offset for applying forward thrust */
+    double param_thrust_z_offset_;
     /*! Plugin Parameter: Horizontal surface area [m^2] */
     double param_boat_area_ ;
     /*! Plugin Parameter: Metacentric length [m] */

@@ -73,9 +73,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   // Set default values
   node_namespace_ = "";
 
-  xyz_damping_ = 20.0;
-  yaw_damping_ = 20.0;
-  rp_damping_ = 5.0;
+
   water_level_ = 0.5;
   water_density_ = 997.7735;
   cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
@@ -96,11 +94,14 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_max_force_fwd_ = 100.0;
   param_max_force_rev_ = -100.0;
   param_boat_width_ = 1.0;
+  param_boat_length_ = 1.35;
+  param_thrust_z_offset_ = -0.01;
   param_metacentric_length_ = 0.2 ; // From clearpath
   param_metacentric_width_ = 0.2;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
 
   //  Enumerating model
+  ROS_INFO_STREAM("Enumerating Model...");
   ROS_INFO_STREAM("Model name = "<< model_->GetName());
   physics::Link_V links = model_->GetLinks();
   for (int ii=0; ii<links.size(); ii++){
@@ -117,11 +118,14 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   {                       
     link_ = model_->GetLink();
     link_name_ = link_->GetName();
+    ROS_INFO_STREAM("Did not find SDF parameter bodyName");
   } 
   else {
     link_name_ = _sdf->GetElement("bodyName")->Get<std::string>();
+    //link_name_ = "thrust_link";
     link_ = model_->GetLink(link_name_);
-    ROS_DEBUG_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
+
+    ROS_INFO_STREAM("Found SDF parameter bodyName as <"<<link_name_<<">");
   }
   if (!link_)
   {
@@ -133,9 +137,6 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     ROS_INFO_STREAM("USV Model Link Name = " << link_name_);
   }
 
-  xyz_damping_ = getSdfParamDouble(_sdf,"xyzDamping",xyz_damping_);
-  yaw_damping_ = getSdfParamDouble(_sdf,"yawDamping",yaw_damping_);
-  rp_damping_ = getSdfParamDouble(_sdf,"rpDamping",rp_damping_);
   water_level_ = getSdfParamDouble(_sdf,"waterLevel",water_level_);
   water_density_ = getSdfParamDouble(_sdf,"waterDensity",water_density_);
   cmd_timeout_ = getSdfParamDouble(_sdf,"cmdTimeout",cmd_timeout_);
@@ -162,6 +163,9 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   param_boat_area_ = getSdfParamDouble(_sdf,"boatArea",param_boat_area_);
   param_boat_width_ = getSdfParamDouble(_sdf,"boatWidth",param_boat_width_);
+  param_boat_length_ = getSdfParamDouble(_sdf,"boatLength",param_boat_length_);
+  param_thrust_z_offset_ = getSdfParamDouble(_sdf,"thrustOffsetZ",
+					 param_thrust_z_offset_);
   param_metacentric_length_ = getSdfParamDouble(_sdf,"metacentricLength",
 						param_metacentric_length_);
   param_metacentric_width_ = getSdfParamDouble(_sdf,"metacentricWidth",
@@ -202,9 +206,9 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   Ma_ = Eigen::MatrixXd(6,6);
   Ma_ << param_X_dot_u_ ,   0,   0, 0, 0, 0,
         0,   param_Y_dot_v_,   0, 0, 0, 0,
-        0,   0,   1, 0, 0, 0,
-        0,   0,   0, 1, 0, 0, 
-        0,   0,   0, 0, 1, 0,  
+        0,   0,   0.1, 0, 0, 0,
+        0,   0,   0, 0.1, 0, 0, 
+        0,   0,   0, 0, 0.1, 0,  
         0,   0,   0, 0, 0, param_N_dot_r_ ;
 }
 
@@ -263,6 +267,7 @@ void UsvPlugin::UpdateChild()
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
   pose = link_->GetWorldPose();
   euler = pose.rot.GetAsEuler();
+  math::Quaternion curr_orientation = pose.rot;
 
   // Get body-centered linear and angular rates
   math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();
@@ -279,7 +284,7 @@ void UsvPlugin::UpdateChild()
   prev_ang_vel_ = vel_angular_body;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel angular: " << accel_angular_body);
 
-  // Create state and derivative of state
+  // Create state and derivative of state (accelerations)
   Eigen::VectorXd state_dot(6);
   state_dot << accel_linear_body.x, accel_linear_body.y, accel_linear_body.z, 
     accel_angular_body.x, accel_angular_body.y, accel_angular_body.z;
@@ -325,24 +330,31 @@ void UsvPlugin::UpdateChild()
 
   // Inputs 
   Eigen::VectorXd inputVec = Eigen::VectorXd::Zero(6);
-  inputVec(0) = thrust;
+  //inputVec(0) = thrust;
   inputVec(5) = torque;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"inputVec :\n" << inputVec);
 
   // Sum all forces
+  // note, inputVec only includes torque component
   Eigen::VectorXd forceSum = inputVec + amassVec + Dvec + buoyVec;
-
+  
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   math::Vector3 totalLinear(forceSum(0),forceSum(1),forceSum(2));
   math::Vector3 totalAngular(forceSum(3),forceSum(4),forceSum(5));
   
-  ////////////////////////////////////////
-  // CUT
-  //link_->AddRelativeForce(force_vec);
-  //link_->AddRelativeTorque(torque_vec);
+  // Add dynamic forces/torques to link at CG
   link_->AddRelativeForce(totalLinear);
-  link_->AddRelativeTorque(totalAngular);
+  link_->AddRelativeTorque(totalAngular);  
 
+  // Add input force with offset below vessel
+  math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 
+		       param_thrust_z_offset_);  // relative pos of thrusters
+  math::Vector3 inputforce3(thrust, 0,0);
+
+  //link_->AddLinkForce(inputforce3,relpos);
+  inputforce3 = curr_orientation.RotateVector(inputforce3);
+  //link_->AddRelativeForce(inputforce3);
+  link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
 
 void UsvPlugin::OnCmdDrive( const kingfisher_msgs::DriveConstPtr &msg)
