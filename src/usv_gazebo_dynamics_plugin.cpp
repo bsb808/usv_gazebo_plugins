@@ -96,8 +96,8 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_boat_width_ = 1.0;
   param_boat_length_ = 1.35;
   param_thrust_z_offset_ = -0.01;
-  param_metacentric_length_ = 0.2 ; // From clearpath
-  param_metacentric_width_ = 0.2;  // ditto
+  param_metacentric_length_ = 0.4 ; // From clearpath
+  param_metacentric_width_ = 0.4;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
 
   //  Enumerating model
@@ -324,8 +324,8 @@ void UsvPlugin::UpdateChild()
   double buoy_force = (water_level_ - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
   Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
   buoyVec(2) = buoy_force;  // Z direction - shoudl really be in XYZ frame
-  buoyVec(3) = -param_metacentric_width_/2*sin(euler.x)*buoy_force; // roll
-  buoyVec(4) = -param_metacentric_length_/2*sin(euler.y)*buoy_force; // pitch
+  buoyVec(3) = -param_metacentric_width_*sin(euler.x)*buoy_force; // roll
+  buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
   ROS_DEBUG_STREAM_THROTTLE(1.0,"buoyVec :\n" << buoyVec);
 
   // Inputs 

@@ -28,8 +28,8 @@
 	<boatWidth>1.0</boatWidth>
 	<boatLength>1.35</boatLength>
 	<thrustOffsetZ>-0.01</thrustOffsetZ>
-	<metacentricLength>0.2</metacentricLength>
-	<metacentricWidth>0.2</metacentricWidth>
+	<metacentricLength>0.4</metacentricLength>
+	<metacentricWidth>0.4</metacentricWidth>
       </plugin>
     </gazebo>
   </xacro:macro>
