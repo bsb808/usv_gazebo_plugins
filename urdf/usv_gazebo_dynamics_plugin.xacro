@@ -6,7 +6,7 @@
       <!--<plugin name="heron_dynamic" filename="libheron_gazebo_plugins.so">-->
       <plugin name="usv_dynamics_${name}" filename="libusv_gazebo_dynamics_plugin.so">
 	<bodyName>base_footprint</bodyName>
-	<waterLevel>0.5</waterLevel>
+	<waterLevel>5.0</waterLevel>
 	<waterDensity>997.8</waterDensity>
 	<cmdTimeout>1.0</cmdTimeout>
 	<xDotU>5.0</xDotU>
@@ -31,6 +31,6 @@
 	<metacentricLength>0.4</metacentricLength>
 	<metacentricWidth>0.4</metacentricWidth>
       </plugin>
-    </gazebo>
+      </gazebo>
   </xacro:macro>
 </robot>
