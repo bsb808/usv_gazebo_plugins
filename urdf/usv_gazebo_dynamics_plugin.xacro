@@ -22,8 +22,8 @@
 	<nR>20.0</nR>
 	<nRR>0.0</nRR> 
 	<maxCmd>1.0</maxCmd>
-	<maxForceFwd>100.0</maxForceFwd>
-	<maxForceRev>-100.0</maxForceRev>
+	<maxForceFwd>40.0</maxForceFwd>
+	<maxForceRev>-40.0</maxForceRev>
 	<boatArea>0.48</boatArea>
 	<boatWidth>1.0</boatWidth>
 	<boatLength>1.35</boatLength>
