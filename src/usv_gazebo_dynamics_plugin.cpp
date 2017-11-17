@@ -73,7 +73,6 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   // Set default values
   node_namespace_ = "";
 
-
   water_level_ = 0.5;
   water_density_ = 997.7735;
   cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
@@ -99,6 +98,11 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_metacentric_length_ = 0.4 ; // From clearpath
   param_metacentric_width_ = 0.4;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
+
+  // Wave field parameters
+  param_wave_amp_ = 0.5;  // [m]
+  param_wave_dir_ = math::Vector2d(1,0);  // wave direction - converted to unit vector
+  param_wave_period_ = 10.0; // [s]
 
   //  Enumerating model
   ROS_INFO_STREAM("Enumerating Model...");
@@ -320,8 +324,17 @@ void UsvPlugin::UpdateChild()
   Eigen::VectorXd Dvec = -1.0*Dmat*state;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec);
 
+  // Wave height
+  double A = param_wave_amp_;
+  double w = 2*3.14159 / param_wave_period_;
+  double k = w*w/9.81;
+  math::Vector2d D = param_wave_dir_;
+  math::Vector2d x = math::Vector2d(pose.pos.x,pose.pos.y);
+  double Ddotx = (D.x*x.x)+(D.y+x.y);
+  double dz = A*cos(k*Ddotx-w*time_now.Float());
+
   // Restoring/Buoyancy Forces
-  double buoy_force = (water_level_ - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
+  double buoy_force = ((water_level_+dz) - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
   Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
   buoyVec(2) = buoy_force;  // Z direction - shoudl really be in XYZ frame
   buoyVec(3) = -param_metacentric_width_*sin(euler.x)*buoy_force; // roll

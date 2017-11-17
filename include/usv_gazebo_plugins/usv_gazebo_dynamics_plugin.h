@@ -183,6 +183,10 @@ namespace gazebo
     /*! Added mass matrix, 6x6 */
     Eigen::MatrixXd Ma_;
     
+    /* Wave parameters */
+    double param_wave_amp_;
+    math::Vector2d param_wave_dir_;
+    double param_wave_period_;
 
     boost::thread *spinner_thread_;
     
