@@ -24,6 +24,7 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/JointState.h>
 #include <ros/time.h>
+#include <tf2/LinearMath/Transform.h>
 
 #include <usv_gazebo_plugins/usv_gazebo_dynamics_plugin.h>
 
@@ -102,7 +103,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   // Wave field parameters
   param_wave_amp_ = 0.5;  // [m]
   param_wave_dir_ = math::Vector2d(1,0);  // wave direction - converted to unit vector
-  param_wave_period_ = 10.0; // [s]
+  param_wave_period_ = 5.0; // [s]
 
   //  Enumerating model
   ROS_INFO_STREAM("Enumerating Model...");
@@ -324,21 +325,70 @@ void UsvPlugin::UpdateChild()
   Eigen::VectorXd Dvec = -1.0*Dmat*state;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec);
 
-  // Wave height
+  // Wave double
   double A = param_wave_amp_;
   double w = 2*3.14159 / param_wave_period_;
   double k = w*w/9.81;
   math::Vector2d D = param_wave_dir_;
   math::Vector2d x = math::Vector2d(pose.pos.x,pose.pos.y);
   double Ddotx = (D.x*x.x)+(D.y+x.y);
-  double dz = A*cos(k*Ddotx-w*time_now.Float());
+  double c = cos(k*Ddotx-w*time_now.Float());
+  double s = sin(k*Ddotx-w*time_now.Float());
+  // displacement 
+  double dz = A*c;
+  // Normal, tangent and binormal
+  math::Vector3 B = math::Vector3(1.0,0.0,D.x*k*A*-1.0*s).Normalize();
+  math::Vector3 T = math::Vector3(0.0,1.0,D.y*k*A*-1.0*s).Normalize();
+  math::Vector3 N = math::Vector3(-D.x*k*A*c, -D.y*k*A*c,1.0).Normalize();
+  /*
+  math::Matrix4 teter = math::Matrix4(B[0],B[1],B[2],0,
+				      T[0],T[1],T[2],0,
+				      N[0],N[1],N[2],0,
+				      0,0,0,1);
+  */
 
+  math::Matrix4 teter = math::Matrix4(B[0],T[1],N[2],0,
+				      B[0],T[1],N[2],0,
+				      B[0],T[1],N[2],0,
+				      0,0,0,1);
+
+  math::Vector3 rpy = teter.GetEulerRotation();
+  printf("%f : %f : %f \n",rpy[0],rpy[1],rpy[2]);
+  ///math::Pose newpose = pose*(teter.GetRotation());
+  //neweuler = newpose.rot.GetAsEuler();
+  // Transform from global to BTN frame
+  tf2::Quaternion g2btn = tf2::Quaternion();
+  g2btn.setEuler(rpy.x,rpy.y,rpy.z);
+  tf2::Quaternion gatt = tf2::Quaternion();
+  gatt.setEuler(euler.x,euler.y,euler.z);
+  tf2::Quaternion newatt = g2btn*gatt;
+  math::Vector3 neweuler;
+  tf2::Matrix3x3 m(newatt);
+  m.getRPY(neweuler.x,neweuler.y,neweuler.z);
+  
+  printf("%f : %f : %f \n",rpy[0],rpy[1],rpy[2]);
+  /*
+  math::Vector3 neweuler = math::Matrix3(B[0],B[1],B[2],
+					 T[0],T[1],T[2],
+					 N[0],N[1],N[2])*euler;
+
+
+  printf("\t%f : %f : %f \n\t %f : %f : %f \n\t %f : %f : %f \n",
+	 B[0],B[1],B[2],T[0],T[1],T[2],N[0],N[1],N[2]);
+  */
+  printf("%f/%f : %f/%f : %f/%f \n",euler.x,neweuler.x,
+	 euler.y,neweuler.y,euler.z,neweuler.z);
+  
   // Restoring/Buoyancy Forces
   double buoy_force = ((water_level_+dz) - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
   Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
   buoyVec(2) = buoy_force;  // Z direction - shoudl really be in XYZ frame
   buoyVec(3) = -param_metacentric_width_*sin(euler.x)*buoy_force; // roll
+  //buoyVec(3) = -param_metacentric_width_*sin(rpy.x)*buoy_force; // roll
+  //buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*28.0*9.81*0.1; // roll
   buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
+  //buoyVec(4) = -param_metacentric_length_*sin(rpy.y)*28.0*9.81; // pitch
+  buoyVec(4) = -param_metacentric_length_*sin(neweuler.y)*28.0*9.81*0.1; // pitch
   ROS_DEBUG_STREAM_THROTTLE(1.0,"buoyVec :\n" << buoyVec);
 
   // Inputs 
@@ -356,7 +406,8 @@ void UsvPlugin::UpdateChild()
   math::Vector3 totalAngular(forceSum(3),forceSum(4),forceSum(5));
   
   // Add dynamic forces/torques to link at CG
-  link_->AddRelativeForce(totalLinear);
+  //link_->AddRelativeForce(totalLinear);
+  link_->AddForce(totalLinear);
   link_->AddRelativeTorque(totalAngular);  
 
   // Add input force with offset below vessel
