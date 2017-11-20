@@ -45,10 +45,10 @@ int main(int argc, char **argv){
 
   //math::Vector3 T = math::Vector3(1.0,0.0,0.0);
   float a = 0.1;
-  math::Vector3 T = math::Vector3(cos(a),0.0,-sin(a));
+  math::Vector3 T = math::Vector3(3*cos(a),0.0,-3*sin(a)).Normalize();
   //T = T/T.GetLength();
-  math::Vector3 B = math::Vector3(0.0,1.0,0.0);
-  math::Vector3 N = math::Vector3(sin(a),0.0,cos(a));
+  math::Vector3 B = math::Vector3(0.0,10.0,0.0).Normalize();
+  math::Vector3 N = math::Vector3(sin(a),0.0,cos(a)).Normalize();
   /*
   tf2::Matrix3x3 btn = tf2::Matrix3x3(T[0],B[0],N[0],
 				      T[1],B[1],N[1],
@@ -57,7 +57,7 @@ int main(int argc, char **argv){
   tf2::Matrix3x3 btn = tf2::Matrix3x3(B[1],B[0],B[2],
 				      T[1],T[0],T[2],
 				      N[1],N[0],N[2]);
-
+  printrot(btn);
   //btn.setIdentity();
   printf("%f,%f,%f\n",btn[0][0],btn[0][1],btn[0][2]);
 

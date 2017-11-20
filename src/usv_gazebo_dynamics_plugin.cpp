@@ -101,9 +101,9 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
 
   // Wave field parameters
-  param_wave_amp_ = 0.5;  // [m]
-  param_wave_dir_ = math::Vector2d(1,0);  // wave direction - converted to unit vector
-  param_wave_period_ = 5.0; // [s]
+  param_wave_amp_ = 0.1;  // [m]
+  param_wave_dir_ = math::Vector2d(0,1);  // wave direction - converted to unit vector
+  param_wave_period_ = 2.5; // [s]
 
   //  Enumerating model
   ROS_INFO_STREAM("Enumerating Model...");
@@ -346,49 +346,44 @@ void UsvPlugin::UpdateChild()
 				      N[0],N[1],N[2],0,
 				      0,0,0,1);
   */
+  tf2::Matrix3x3 btn = tf2::Matrix3x3(B[1],B[0],B[2],
+				      T[1],T[0],T[2],
+				      N[1],N[0],N[2]);
+ 
+  // Wave rotation - orientation of wave frame
+  tf2::Quaternion wq = tf2::Quaternion();
+  btn.getRotation(wq);
+  math::Vector3 weuler;
+  tf2::Matrix3x3(wq).getEulerYPR(weuler.z,weuler.y,weuler.x);
+  // Vehicle frame
+  tf2::Quaternion vq = tf2::Quaternion();
+  tf2::Matrix3x3 m;
+  m.setEulerYPR(euler.z,euler.y,euler.x);
+  m.getRotation(vq);
 
-  math::Matrix4 teter = math::Matrix4(B[0],T[1],N[2],0,
-				      B[0],T[1],N[2],0,
-				      B[0],T[1],N[2],0,
-				      0,0,0,1);
-
-  math::Vector3 rpy = teter.GetEulerRotation();
-  printf("%f : %f : %f \n",rpy[0],rpy[1],rpy[2]);
-  ///math::Pose newpose = pose*(teter.GetRotation());
-  //neweuler = newpose.rot.GetAsEuler();
-  // Transform from global to BTN frame
-  tf2::Quaternion g2btn = tf2::Quaternion();
-  g2btn.setEuler(rpy.x,rpy.y,rpy.z);
-  tf2::Quaternion gatt = tf2::Quaternion();
-  gatt.setEuler(euler.x,euler.y,euler.z);
-  tf2::Quaternion newatt = g2btn*gatt;
+  // Transform
+  tf2::Quaternion vwq = wq*vq;
   math::Vector3 neweuler;
-  tf2::Matrix3x3 m(newatt);
-  m.getRPY(neweuler.x,neweuler.y,neweuler.z);
-  
-  printf("%f : %f : %f \n",rpy[0],rpy[1],rpy[2]);
+  tf2::Matrix3x3(vwq).getEulerYPR(neweuler.z,neweuler.y,neweuler.x);
+
+  // Print
   /*
-  math::Vector3 neweuler = math::Matrix3(B[0],B[1],B[2],
-					 T[0],T[1],T[2],
-					 N[0],N[1],N[2])*euler;
-
-
-  printf("\t%f : %f : %f \n\t %f : %f : %f \n\t %f : %f : %f \n",
-	 B[0],B[1],B[2],T[0],T[1],T[2],N[0],N[1],N[2]);
+  printf("%f/%f/%f \t %f/%f/%f \t %f/%f/%f\n",
+	 weuler.x,euler.x,neweuler.x,
+	 weuler.y,euler.y,neweuler.y,
+	 weuler.z,euler.z,neweuler.z);
   */
-  printf("%f/%f : %f/%f : %f/%f \n",euler.x,neweuler.x,
-	 euler.y,neweuler.y,euler.z,neweuler.z);
   
   // Restoring/Buoyancy Forces
   double buoy_force = ((water_level_+dz) - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
   Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
-  buoyVec(2) = buoy_force;  // Z direction - shoudl really be in XYZ frame
+  buoyVec(2) = 0.0; //buoy_force;  // Z direction - shoudl really be in XYZ frame
   buoyVec(3) = -param_metacentric_width_*sin(euler.x)*buoy_force; // roll
   //buoyVec(3) = -param_metacentric_width_*sin(rpy.x)*buoy_force; // roll
-  //buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*28.0*9.81*0.1; // roll
-  buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
+  buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*28.0*9.81; // roll
+  //buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
   //buoyVec(4) = -param_metacentric_length_*sin(rpy.y)*28.0*9.81; // pitch
-  buoyVec(4) = -param_metacentric_length_*sin(neweuler.y)*28.0*9.81*0.1; // pitch
+  buoyVec(4) = -param_metacentric_length_*sin(neweuler.y)*28.0*9.81; // pitch
   ROS_DEBUG_STREAM_THROTTLE(1.0,"buoyVec :\n" << buoyVec);
 
   // Inputs 
@@ -397,17 +392,20 @@ void UsvPlugin::UpdateChild()
   inputVec(5) = torque;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"inputVec :\n" << inputVec);
 
-  // Sum all forces
+  // Sum all forces - in body frame
   // note, inputVec only includes torque component
   Eigen::VectorXd forceSum = inputVec + amassVec + Dvec + buoyVec;
+  // Forces in fixed frame
+  math::Vector3 forceXYZ(0.0,0.0,buoy_force);
   
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   math::Vector3 totalLinear(forceSum(0),forceSum(1),forceSum(2));
   math::Vector3 totalAngular(forceSum(3),forceSum(4),forceSum(5));
   
   // Add dynamic forces/torques to link at CG
-  //link_->AddRelativeForce(totalLinear);
-  link_->AddForce(totalLinear);
+  link_->AddRelativeForce(totalLinear);
+  //link_->AddForce(totalLinear);
+  link_->AddForce(forceXYZ);
   link_->AddRelativeTorque(totalAngular);  
 
   // Add input force with offset below vessel
