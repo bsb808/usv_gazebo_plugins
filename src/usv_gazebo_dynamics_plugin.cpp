@@ -245,7 +245,7 @@ void UsvPlugin::UpdateChild()
   double dcmd = cmd_time.Double();
   if ( dcmd > cmd_timeout_ )
   {
-    ROS_WARN_STREAM_THROTTLE(1.0,"Command timeout!");
+    ROS_INFO_STREAM_THROTTLE(1.0,"Command timeout!");
     last_cmd_drive_left_ = 0.0;
     last_cmd_drive_right_ = 0.0;
   }
