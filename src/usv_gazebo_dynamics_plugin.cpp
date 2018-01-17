@@ -357,7 +357,7 @@ void UsvPlugin::UpdateChild()
   link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
 
-void UsvPlugin::OnCmdDrive( const kingfisher_msgs::DriveConstPtr &msg)
+void UsvPlugin::OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg)
 {
     last_cmd_drive_time_ = this->world_->GetSimTime();
     last_cmd_drive_left_ = msg->left;

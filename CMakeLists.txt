@@ -8,7 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   cmake_modules
   roscpp 
   gazebo_ros 
-  kingfisher_msgs
+  usv_msgs
   nav_msgs
   geometry_msgs
 )
@@ -52,7 +52,7 @@ link_directories(
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp kingfisher_msgs geometry_msgs nav_msgs
+   CATKIN_DEPENDS roscpp usv_msgs geometry_msgs nav_msgs
    DEPENDS gazebo
    LIBRARIES
 )

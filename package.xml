@@ -14,7 +14,8 @@
   <depend>roscpp</depend>
   <depend>gazebo</depend>
   <depend>gazebo_ros</depend>
-  <depend>kingfisher_msgs</depend>
+  <!--<depend>kingfisher_msgs</depend>-->
+  <depend>usv_msgs</depend>
   <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>eigen</depend>
