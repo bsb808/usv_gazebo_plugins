@@ -171,6 +171,8 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_metacentric_width_ = getSdfParamDouble(_sdf,"metacentricWidth",
 						param_metacentric_width_);
 
+  math::Vector3 wind = _sdf->GetElement("wind_velocity_vector")->Get<math::Vector3>();
+  ROS_INFO_STREAM("** WIND = "<<wind.x << wind.y << wind.z);
   
   // Get inertia and mass of vessel
   math::Vector3 inertia = link_->GetInertial()->GetPrincipalMoments();
@@ -263,7 +265,10 @@ void UsvPlugin::UpdateChild()
 		   << " right: " << thrust_right);
   double thrust = thrust_right + thrust_left;
   double torque = (thrust_right - thrust_left)*param_boat_width_;
-      
+
+  // Wind
+  //ROS_INFO_STREAM("***** " << link_->RelativeWindLinearVel().X());
+  
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
   pose = link_->GetWorldPose();
   euler = pose.rot.GetAsEuler();

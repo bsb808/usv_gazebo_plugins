@@ -33,6 +33,9 @@
 	<thrustOffsetZ>-0.04</thrustOffsetZ>
 	<metacentricLength>0.4</metacentricLength>
 	<metacentricWidth>0.4</metacentricWidth>
+	<!-- Wind -->
+	<wind_velocity_vector>1.1 2.1 3.14</wind_velocity_vector>
+	
       </plugin>
       </gazebo>
   </xacro:macro>
