@@ -183,7 +183,12 @@ namespace gazebo
     /*! Added mass matrix, 6x6 */
     Eigen::MatrixXd Ma_;
     
+    /*! Wind velocity in Gazebo coordinates [m/s] */
+    math::Vector3 param_wind_velocity_vector_;
 
+    /*! Wind force coefficients */
+    math::Vector3 param_wind_coeff_vector_;
+    
     boost::thread *spinner_thread_;
     
     event::ConnectionPtr contact_event_;
