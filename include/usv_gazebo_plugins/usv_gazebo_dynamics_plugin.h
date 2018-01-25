@@ -32,7 +32,7 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistWithCovariance.h>
 #include <geometry_msgs/PoseWithCovariance.h>
-#include <kingfisher_msgs/Drive.h>
+#include <usv_msgs/UsvDrive.h>
 
 #include <Eigen/Core>
 				    //#include <tf/transform_broadcaster.h>
@@ -60,10 +60,10 @@ namespace gazebo
       but not implemented! */
     void OnContact(const std::string &name, const physics::Contact &contact);
     /*!
-      Callback for Kingfisher Drive commands
-      \param msg Kingfisher Drive message
+      Callback for Drive commands
+      \param msg usv_msgs UsvDrive message
     */
-    void OnCmdDrive( const kingfisher_msgs::DriveConstPtr &msg);
+    void OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg);
 
     /*! ROS spin once */
     void spin();
@@ -188,6 +188,12 @@ namespace gazebo
     math::Vector2d param_wave_dir_;
     double param_wave_period_;
 
+    /*! Wind velocity in Gazebo coordinates [m/s] */
+    math::Vector3 param_wind_velocity_vector_;
+
+    /*! Wind force coefficients */
+    math::Vector3 param_wind_coeff_vector_;
+    
     boost::thread *spinner_thread_;
     
     event::ConnectionPtr contact_event_;

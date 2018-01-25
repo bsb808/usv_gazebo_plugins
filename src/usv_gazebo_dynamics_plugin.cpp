@@ -69,7 +69,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   ROS_INFO("Loading usv_gazebo_dynamics_plugin");
   model_ = _parent;
   world_ = model_->GetWorld();
-
+  
   // Retrieve model paramters from SDF
   // Set default values
   node_namespace_ = "";
@@ -99,6 +99,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_metacentric_length_ = 0.4 ; // From clearpath
   param_metacentric_width_ = 0.4;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
+  
 
   // Wave field parameters
   param_wave_amp_ = 0.1;  // [m]
@@ -175,8 +176,23 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 						param_metacentric_length_);
   param_metacentric_width_ = getSdfParamDouble(_sdf,"metacentricWidth",
 						param_metacentric_width_);
+  if (_sdf->HasElement("wind_velocity_vector")){
+    param_wind_velocity_vector_ = _sdf->GetElement("wind_velocity_vector")->Get<math::Vector3>();
+  }
+  else{
+    param_wind_velocity_vector_ = math::Vector3(0,0,0);
+  }
+  ROS_INFO_STREAM("Wind velocity vector = "<<param_wind_velocity_vector_.x << " , " << param_wind_velocity_vector_.y << " , " << param_wind_velocity_vector_.z);
 
-  
+
+  if (_sdf->HasElement("wind_coeff_vector")){
+    param_wind_coeff_vector_ = _sdf->GetElement("wind_coeff_vector")->Get<math::Vector3>();
+  }
+  else{
+    param_wind_coeff_vector_ = math::Vector3(0,0,0);
+  }
+  ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
+
   // Get inertia and mass of vessel
   math::Vector3 inertia = link_->GetInertial()->GetPrincipalMoments();
   double mass = link_->GetInertial()->GetMass();
@@ -250,7 +266,7 @@ void UsvPlugin::UpdateChild()
   double dcmd = cmd_time.Double();
   if ( dcmd > cmd_timeout_ )
   {
-    ROS_WARN_STREAM_THROTTLE(1.0,"Command timeout!");
+    ROS_INFO_STREAM_THROTTLE(1.0,"Command timeout!");
     last_cmd_drive_left_ = 0.0;
     last_cmd_drive_right_ = 0.0;
   }
@@ -268,14 +284,17 @@ void UsvPlugin::UpdateChild()
 		   << " right: " << thrust_right);
   double thrust = thrust_right + thrust_left;
   double torque = (thrust_right - thrust_left)*param_boat_width_;
-      
+
+
+  
+  
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
   pose = link_->GetWorldPose();
   euler = pose.rot.GetAsEuler();
   math::Quaternion curr_orientation = pose.rot;
 
   // Get body-centered linear and angular rates
-  math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();
+  math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();  
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body);
   math::Vector3 vel_angular_body = link_->GetRelativeAngularVel();
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body);
@@ -289,6 +308,19 @@ void UsvPlugin::UpdateChild()
   prev_ang_vel_ = vel_angular_body;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel angular: " << accel_angular_body);
 
+  // Wind
+  // Transform wind from world coordinates to body coordinates
+  math::Vector3 relative_wind = pose.rot.GetInverse().RotateVector(param_wind_velocity_vector_);
+  // Calculate apparent wind
+  math::Vector3 apparent_wind = relative_wind - vel_linear_body;
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Relative wind: " << relative_wind);
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Apparent wind: " << apparent_wind);
+  // Calculate wind force - body coordinates
+  math::Vector3 wind_force(
+			   param_wind_coeff_vector_.x * relative_wind.x * abs(relative_wind.x),
+			   param_wind_coeff_vector_.y * relative_wind.y * abs(relative_wind.y),
+			   -2.0*param_wind_coeff_vector_.z * relative_wind.x * relative_wind.y);
+  
   // Create state and derivative of state (accelerations)
   Eigen::VectorXd state_dot(6);
   state_dot << accel_linear_body.x, accel_linear_body.y, accel_linear_body.z, 
@@ -399,8 +431,11 @@ void UsvPlugin::UpdateChild()
   math::Vector3 forceXYZ(0.0,0.0,buoy_force);
   
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
-  math::Vector3 totalLinear(forceSum(0),forceSum(1),forceSum(2));
-  math::Vector3 totalAngular(forceSum(3),forceSum(4),forceSum(5));
+  math::Vector3 totalLinear(forceSum(0)+wind_force.x,
+			    forceSum(1)+wind_force.y,
+			    forceSum(2));
+  math::Vector3 totalAngular(forceSum(3),forceSum(4),
+			     forceSum(5)+wind_force.z);
   
   // Add dynamic forces/torques to link at CG
   link_->AddRelativeForce(totalLinear);
@@ -419,7 +454,7 @@ void UsvPlugin::UpdateChild()
   link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
 
-void UsvPlugin::OnCmdDrive( const kingfisher_msgs::DriveConstPtr &msg)
+void UsvPlugin::OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg)
 {
     last_cmd_drive_time_ = this->world_->GetSimTime();
     last_cmd_drive_left_ = msg->left;
