@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
+along with this package.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
@@ -392,6 +392,7 @@ void UsvPlugin::UpdateChild()
   tf2::Matrix3x3 m;
   m.setEulerYPR(euler.z,euler.y,euler.x);
   m.getRotation(vq);
+  tf2::Transform xform_v = tf2::Transform(vq);
 
   // Transform
   tf2::Quaternion vwq = wq*vq;
@@ -407,16 +408,17 @@ void UsvPlugin::UpdateChild()
   */
   
   // Restoring/Buoyancy Forces
+  /*
   double buoy_force = ((water_level_+dz) - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
   Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
   buoyVec(2) = 0.0; //buoy_force;  // Z direction - shoudl really be in XYZ frame
-  buoyVec(3) = -param_metacentric_width_*sin(euler.x)*buoy_force; // roll
-  //buoyVec(3) = -param_metacentric_width_*sin(rpy.x)*buoy_force; // roll
+  buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*buoy_force; // roll
   buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*28.0*9.81; // roll
   //buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
   //buoyVec(4) = -param_metacentric_length_*sin(rpy.y)*28.0*9.81; // pitch
   buoyVec(4) = -param_metacentric_length_*sin(neweuler.y)*28.0*9.81; // pitch
   ROS_DEBUG_STREAM_THROTTLE(1.0,"buoyVec :\n" << buoyVec);
+  */
 
   // Inputs 
   Eigen::VectorXd inputVec = Eigen::VectorXd::Zero(6);
@@ -426,9 +428,9 @@ void UsvPlugin::UpdateChild()
 
   // Sum all forces - in body frame
   // note, inputVec only includes torque component
-  Eigen::VectorXd forceSum = inputVec + amassVec + Dvec + buoyVec;
+  Eigen::VectorXd forceSum = inputVec + amassVec + Dvec;// + buoyVec;
   // Forces in fixed frame
-  math::Vector3 forceXYZ(0.0,0.0,buoy_force);
+  //math::Vector3 forceXYZ(0.0,0.0,buoy_force);
   
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   math::Vector3 totalLinear(forceSum(0)+wind_force.x,
@@ -439,9 +441,28 @@ void UsvPlugin::UpdateChild()
   
   // Add dynamic forces/torques to link at CG
   link_->AddRelativeForce(totalLinear);
-  //link_->AddForce(totalLinear);
-  link_->AddForce(forceXYZ);
   link_->AddRelativeTorque(totalAngular);  
+  //link_->AddForce(forceXYZ);
+
+  // Distribute upward buoyancy force
+  int NN = 2;
+  float dx = param_boat_width_/NN;
+  float dy = param_boat_length_/NN;
+  float ddx, ddy;
+  tf2::Vector3 bpnt(0,0,0);
+  for (int ii=0; ii<NN; ii++){
+    bpnt.setX((-1.0*ii)*dx);
+    for (int jj=0; jj<NN; jj++){
+      bpnt.setY((-1.0*jj)*dy);
+      // find displacement of positions relative to boat
+      ROS_DEBUG_STREAM("grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      bpnt = xform_v*bpnt;
+      ROS_DEBUG_STREAM("v frame euler "<<euler);
+      ROS_DEBUG_STREAM("in v frame"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());      
+      
+    }
+  }
+      
 
   // Add input force with offset below vessel
   math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 
