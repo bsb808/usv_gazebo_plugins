@@ -103,7 +103,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   // Wave field parameters
   param_wave_amp_ = 0.1;  // [m]
-  param_wave_dir_ = math::Vector2d(0,1);  // wave direction - converted to unit vector
+  param_wave_dir_ = math::Vector2d(1,0);  // wave direction - converted to unit vector
   param_wave_period_ = 2.5; // [s]
 
   //  Enumerating model
@@ -192,6 +192,14 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     param_wind_coeff_vector_ = math::Vector3(0,0,0);
   }
   ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
+
+  // Wave parameters
+  param_wave_amp_ = getSdfParamDouble(_sdf,"wave_amp",
+						param_wave_amp_);
+  param_wave_period_ = getSdfParamDouble(_sdf,"wave_period",param_wave_period_);
+  if (_sdf->HasElement("wave_direction")){
+    param_wave_dir_ = _sdf->GetElement("wave_direction")->Get<math::Vector2d>();
+  }
 
   // Get inertia and mass of vessel
   math::Vector3 inertia = link_->GetInertial()->GetPrincipalMoments();
@@ -445,20 +453,38 @@ void UsvPlugin::UpdateChild()
   //link_->AddForce(forceXYZ);
 
   // Distribute upward buoyancy force
-  int NN = 2;
+  int NN = 2;  // must be factor of 2!
   float dx = param_boat_width_/NN;
   float dy = param_boat_length_/NN;
-  float ddx, ddy;
+  float ddx, ddy, ddz, buoy_force;
   tf2::Vector3 bpnt(0,0,0);
-  for (int ii=0; ii<NN; ii++){
-    bpnt.setX((-1.0*ii)*dx);
-    for (int jj=0; jj<NN; jj++){
-      bpnt.setY((-1.0*jj)*dy);
+  tf2::Vector3 bpnt_w(0,0,0);
+  math::Vector3 bpntm(0,0,0);
+  for (int ii=-NN/2; ii<=NN/2; ii++){
+    bpnt.setX(ii*dx);
+    for (int jj=-NN/2; jj<=NN/2; jj++){
+      bpnt.setY(jj*dy);
       // find displacement of positions relative to boat
-      ROS_DEBUG_STREAM("grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
-      bpnt = xform_v*bpnt;
+      ROS_DEBUG_STREAM("[" << ii <<","<<jj<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      bpnt_w = xform_v*bpnt;
       ROS_DEBUG_STREAM("v frame euler "<<euler);
-      ROS_DEBUG_STREAM("in v frame"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());      
+      ROS_DEBUG_STREAM("in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
+      // calc force
+      // vertical location of boat grid point
+      ddz = pose.pos.z+bpnt_w.z();
+      // vertical location of water
+      x.x = bpnt_w.x();
+      x.y = bpnt_w.y();
+      Ddotx = (D.x*x.x)+(D.y+x.y);
+      c = cos(k*Ddotx-w*time_now.Float());
+      dz = A*c;
+      
+      buoy_force = (((water_level_+dz)-(ddz))*(param_boat_area_/((NN+1)*(NN+1)))*GRAVITY*water_density_);
+      // apply force
+      bpntm=math::Vector3(bpnt.x(),bpnt.y(),bpnt.z());
+      //tf2::Vector3 vertf = xform_v.inverse()*tf2::Vector3(0,0,buoy_force);
+      //link_->AddForceAtRelativePosition(math::Vector3(vertf.x(),vertf.y(),vertf.z()),bpntm);
+      link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),bpntm);
       
     }
   }

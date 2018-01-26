@@ -28,15 +28,22 @@
 	<maxForceRev>-254.0</maxForceRev>
 	<!-- General dimensions -->
 	<boatArea>1.6</boatArea>
-	<boatWidth>1.83</boatWidth>
-	<boatLength>3.2</boatLength>
+	<boatWidth>2.4</boatWidth>
+	<boatLength>4.9</boatLength>
 	<thrustOffsetZ>-0.04</thrustOffsetZ>
 	<metacentricLength>0.4</metacentricLength>
 	<metacentricWidth>0.4</metacentricWidth>
+	
 	<!-- Wind -->
 	<wind_velocity_vector>0 0 0 </wind_velocity_vector>
 	<!-- Coefficients from Sarda et al., "Station-keeping control of an unmanned surface vehicle exposed to current and wind disturbances -->
 	<wind_coeff_vector>0.5 0.5 0.33 </wind_coeff_vector>
+
+	<!-- Waves -->
+	<wave_amp>0.1</wave_amp>
+	<wave_period>5</wave_period>
+	<wave_direction>1 0</wave_direction>
+	
       </plugin>
       </gazebo>
   </xacro:macro>
