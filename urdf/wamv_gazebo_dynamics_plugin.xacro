@@ -40,9 +40,9 @@
 	<wind_coeff_vector>0.5 0.5 0.33 </wind_coeff_vector>
 
 	<!-- Waves -->
-	<wave_amp>0.1</wave_amp>
+	<wave_amp>1</wave_amp>
 	<wave_period>5</wave_period>
-	<wave_direction>1 0</wave_direction>
+	<wave_direction>1 1</wave_direction>
 	
       </plugin>
       </gazebo>

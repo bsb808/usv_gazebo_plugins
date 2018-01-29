@@ -371,7 +371,7 @@ void UsvPlugin::UpdateChild()
   double k = w*w/9.81;
   math::Vector2d D = param_wave_dir_;
   math::Vector2d x = math::Vector2d(pose.pos.x,pose.pos.y);
-  double Ddotx = (D.x*x.x)+(D.y+x.y);
+  double Ddotx = (D.x*x.x)+(D.y*x.y);
   double c = cos(k*Ddotx-w*time_now.Float());
   double s = sin(k*Ddotx-w*time_now.Float());
   // displacement 
@@ -454,42 +454,86 @@ void UsvPlugin::UpdateChild()
 
   // Distribute upward buoyancy force
   int NN = 2;  // must be factor of 2!
-  float dx = param_boat_width_/NN;
-  float dy = param_boat_length_/NN;
+  float dx = param_boat_length_/NN;
+  float dy = param_boat_width_/NN;
+  int II[]={-1,1};
+  std::list<int> Ilist(II,II+sizeof(II)/sizeof(int));
+  int JJ[]={-1,1};
+  std::list<int> Jlist(JJ,JJ+sizeof(JJ)/sizeof(int));
+  
   float ddx, ddy, ddz, buoy_force;
   tf2::Vector3 bpnt(0,0,0);
   tf2::Vector3 bpnt_w(0,0,0);
   math::Vector3 bpntm(0,0,0);
-  for (int ii=-NN/2; ii<=NN/2; ii++){
-    bpnt.setX(ii*dx);
-    for (int jj=-NN/2; jj<=NN/2; jj++){
-      bpnt.setY(jj*dy);
+  float mmm[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
+  ROS_DEBUG_STREAM(mmm[0][0] << ", " << mmm[0][1] << ", " << mmm[0][2]);
+  ROS_DEBUG_STREAM(mmm[1][0] << ", " << mmm[1][1] << ", " << mmm[1][2]);
+  ROS_DEBUG_STREAM(mmm[2][0] << ", " << mmm[2][1] << ", " << mmm[2][2]);
+  //for (int ii=-NN/2; ii<=NN/2; ii++){
+  for (std::list<int>::iterator ii=Ilist.begin();ii != Ilist.end(); ii++){
+    //int ii[]={1};
+    bpnt.setX((*ii)*dx);
+    //bpnt.setX(0);
+    //for (int jj=-NN/2; jj<=NN/2; jj++){
+    for (std::list<int>::iterator jj=Jlist.begin(); jj != Jlist.end(); jj++){
+
+      bpnt.setY((*jj)*dy);
       // find displacement of positions relative to boat
-      ROS_DEBUG_STREAM("[" << ii <<","<<jj<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      ROS_DEBUG_STREAM("[" << (*ii) <<","<<(*jj)<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
       bpnt_w = xform_v*bpnt;
       ROS_DEBUG_STREAM("v frame euler "<<euler);
       ROS_DEBUG_STREAM("in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
       // calc force
       // vertical location of boat grid point
       ddz = pose.pos.z+bpnt_w.z();
+      ROS_DEBUG_STREAM("Z, pose: " << pose.pos.z <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
       // vertical location of water
-      x.x = bpnt_w.x();
-      x.y = bpnt_w.y();
-      Ddotx = (D.x*x.x)+(D.y+x.y);
+      x.x = pose.pos.x+bpnt_w.x();
+      x.y = pose.pos.y+bpnt_w.y();
+      Ddotx = (D.x*x.x)+(D.y*x.y);
       c = cos(k*Ddotx-w*time_now.Float());
       dz = A*c;
-      
+
+      /*
+      for (int kk=0; kk<10; kk++){
+	x.x = ((double)kk)*0.2;
+	x.y = 0.0;
+	Ddotx = (D.x*x.x)+(D.y*x.y);
+	c = cos(k*Ddotx-w*time_now.Float());
+	std::cout << A*c;
+      }
+      std::cout << std::endl;
+
+      for (int kk=0; kk<10; kk++){
+	x.y = ((double)kk)*0.2;
+	x.x = 0.0;
+	Ddotx = (D.x*x.x)+(D.y*x.y);
+	c = cos(k*Ddotx-w*time_now.Float());
+	std::cout << A*c;
+      }
+      std::cout << std::endl;
+      */
+
+	  
+      mmm[(*ii)+1][(*jj)+1]=dz;
+      ROS_DEBUG_STREAM("wave disp: " << dz);      
       buoy_force = (((water_level_+dz)-(ddz))*(param_boat_area_/((NN+1)*(NN+1)))*GRAVITY*water_density_);
+      ROS_DEBUG_STREAM("buoy_force: " << buoy_force);
       // apply force
       bpntm=math::Vector3(bpnt.x(),bpnt.y(),bpnt.z());
       //tf2::Vector3 vertf = xform_v.inverse()*tf2::Vector3(0,0,buoy_force);
       //link_->AddForceAtRelativePosition(math::Vector3(vertf.x(),vertf.y(),vertf.z()),bpntm);
+      // From web
+      // Appears that position is in the link frame and force is in world frame
       link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),bpntm);
-      
     }
   }
-      
-
+  /*
+  ROS_DEBUG_STREAM(mmm[0][0] << ", " << mmm[0][1] << ", " << mmm[0][2]);
+  ROS_DEBUG_STREAM(mmm[1][0] << ", " << mmm[1][1] << ", " << mmm[1][2]);
+  ROS_DEBUG_STREAM(mmm[2][0] << ", " << mmm[2][1] << ", " << mmm[2][2]);
+  */
+  
   // Add input force with offset below vessel
   math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 
 		       param_thrust_z_offset_);  // relative pos of thrusters
