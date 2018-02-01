@@ -23,6 +23,11 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef USV_GAZEBO_DYNAMICS_H
 #define USV_GAZEBO_DYNAMICS_H
 
+// C++
+#include <vector>
+#include <iostream>     // std::cout, std::ios
+#include <sstream>      // std::ostringstream
+
 // Gazebo
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
@@ -184,6 +189,11 @@ namespace gazebo
     Eigen::MatrixXd Ma_;
     
     /* Wave parameters */
+    int param_wave_n_;
+    std::vector<float> param_wave_amps_;
+    std::vector<float> param_wave_periods_;
+    std::vector< std::vector<float> > param_wave_directions_;
+    
     double param_wave_amp_;
     math::Vector2d param_wave_dir_;
     double param_wave_period_;

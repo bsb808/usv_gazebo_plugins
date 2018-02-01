@@ -27,7 +27,7 @@
 	<maxForceFwd>254.0</maxForceFwd>
 	<maxForceRev>-254.0</maxForceRev>
 	<!-- General dimensions -->
-	<boatArea>1.6</boatArea>
+	<boatArea>4.5</boatArea>
 	<boatWidth>2.4</boatWidth>
 	<boatLength>4.9</boatLength>
 	<thrustOffsetZ>-0.04</thrustOffsetZ>
@@ -40,10 +40,25 @@
 	<wind_coeff_vector>0.5 0.5 0.33 </wind_coeff_vector>
 
 	<!-- Waves -->
-	<wave_amp>1</wave_amp>
+	<wave_amp>0</wave_amp>
 	<wave_period>5</wave_period>
 	<wave_direction>1 1</wave_direction>
-	
+
+	<!-- Waves x3 -->
+	<wave_n>3</wave_n>
+
+	<wave_amp0>0.06</wave_amp0>
+	<wave_period0>12.6</wave_period0>
+	<wave_direction0>-1 0</wave_direction0>
+
+	<wave_amp1>0.04</wave_amp1>
+	<wave_period1>3.7</wave_period1>
+	<wave_direction1>-0.7 0.7</wave_direction1>
+
+	<wave_amp2>0.03</wave_amp2>
+	<wave_period2>6.3</wave_period2>
+	<wave_direction2>0.7 0.7</wave_direction2>
+
       </plugin>
       </gazebo>
   </xacro:macro>

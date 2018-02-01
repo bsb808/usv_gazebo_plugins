@@ -194,6 +194,31 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
 
   // Wave parameters
+  std::ostringstream buf;
+  math::Vector2d tmpm;
+  std::vector<float> tmpv(2,0);
+  param_wave_n_ = _sdf->GetElement("wave_n")->Get<int>();
+  for (int ii=0; ii < param_wave_n_; ii++){
+    buf.str("");
+    buf<<"wave_amp"<<ii;
+    param_wave_amps_.push_back(_sdf->GetElement(buf.str())->Get<float>());
+    ROS_INFO_STREAM("Wave Amplitude "<<ii<<": "<<param_wave_amps_[ii]);
+    buf.str("");
+    buf<<"wave_period"<<ii;
+    param_wave_periods_.push_back(_sdf->GetElement(buf.str())->Get<float>());
+    buf.str("");
+    buf<<"wave_direction"<<ii;
+    tmpm=_sdf->GetElement(buf.str())->Get<math::Vector2d>();
+    tmpv[0] = tmpm.x;
+    tmpv[1] = tmpm.y;
+    param_wave_directions_.push_back(tmpv);
+    ROS_INFO_STREAM("Wave Direction "<<ii<<": "<<param_wave_directions_[ii][0]
+		    << ", " << param_wave_directions_[ii][1]);
+
+  }
+
+
+  
   param_wave_amp_ = getSdfParamDouble(_sdf,"wave_amp",
 						param_wave_amp_);
   param_wave_period_ = getSdfParamDouble(_sdf,"wave_period",param_wave_period_);
@@ -462,9 +487,9 @@ void UsvPlugin::UpdateChild()
   std::list<int> Jlist(JJ,JJ+sizeof(JJ)/sizeof(int));
   
   float ddx, ddy, ddz, buoy_force;
-  tf2::Vector3 bpnt(0,0,0);
-  tf2::Vector3 bpnt_w(0,0,0);
-  math::Vector3 bpntm(0,0,0);
+  tf2::Vector3 bpnt(0,0,0);     // grid points on boat
+  tf2::Vector3 bpnt_w(0,0,0);   // in world coordinates
+  math::Vector3 bpntm(0,0,0);   // as a math vector
   float mmm[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
   ROS_DEBUG_STREAM(mmm[0][0] << ", " << mmm[0][1] << ", " << mmm[0][2]);
   ROS_DEBUG_STREAM(mmm[1][0] << ", " << mmm[1][1] << ", " << mmm[1][2]);
@@ -490,9 +515,17 @@ void UsvPlugin::UpdateChild()
       // vertical location of water
       x.x = pose.pos.x+bpnt_w.x();
       x.y = pose.pos.y+bpnt_w.y();
-      Ddotx = (D.x*x.x)+(D.y*x.y);
-      c = cos(k*Ddotx-w*time_now.Float());
-      dz = A*c;
+      // sum over all waves
+      dz = 0.0;
+      for (int ii=0; ii < param_wave_n_; ii++){
+	Ddotx=param_wave_directions_[ii][0]*x.x
+	  +param_wave_directions_[ii][1]*x.y;
+	w = 2.0*3.14159 / param_wave_periods_[ii];
+	k = w*w/9.81;
+	c = cos(k*Ddotx-w*time_now.Float());
+	dz += param_wave_amps_[ii]*c;	
+      }
+
 
       /*
       for (int kk=0; kk<10; kk++){
