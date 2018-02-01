@@ -64,7 +64,7 @@ catkin_package(
 ## Declare a C++ library
 add_library(usv_gazebo_dynamics_plugin
   src/usv_gazebo_dynamics_plugin.cpp
- )
+  )
 
 target_link_libraries(usv_gazebo_dynamics_plugin
   ${catkin_LIBRARIES}
@@ -72,6 +72,13 @@ target_link_libraries(usv_gazebo_dynamics_plugin
   ${Boost_LIBRARIES}
   ${Eigen_LIBRARIES}
 )
+
+add_executable(ugdp_test
+  test/ugdp_test.cpp
+  )
+target_link_libraries(ugdp_test
+  usv_gazebo_dynamics_plugin
+  )
 
 add_executable(frame_test
   test/frame_test.cpp

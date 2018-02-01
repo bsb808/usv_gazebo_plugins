@@ -27,7 +27,7 @@
 	<maxForceFwd>254.0</maxForceFwd>
 	<maxForceRev>-254.0</maxForceRev>
 	<!-- General dimensions -->
-	<boatArea>4.5</boatArea>
+	<boatArea>2.2</boatArea>
 	<boatWidth>2.4</boatWidth>
 	<boatLength>4.9</boatLength>
 	<thrustOffsetZ>-0.04</thrustOffsetZ>

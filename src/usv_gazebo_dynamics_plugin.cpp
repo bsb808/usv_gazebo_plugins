@@ -100,12 +100,6 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_metacentric_width_ = 0.4;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
   
-
-  // Wave field parameters
-  param_wave_amp_ = 0.1;  // [m]
-  param_wave_dir_ = math::Vector2d(1,0);  // wave direction - converted to unit vector
-  param_wave_period_ = 2.5; // [s]
-
   //  Enumerating model
   ROS_INFO_STREAM("Enumerating Model...");
   ROS_INFO_STREAM("Model name = "<< model_->GetName());
@@ -217,14 +211,6 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   }
 
-
-  
-  param_wave_amp_ = getSdfParamDouble(_sdf,"wave_amp",
-						param_wave_amp_);
-  param_wave_period_ = getSdfParamDouble(_sdf,"wave_period",param_wave_period_);
-  if (_sdf->HasElement("wave_direction")){
-    param_wave_dir_ = _sdf->GetElement("wave_direction")->Get<math::Vector2d>();
-  }
 
   // Get inertia and mass of vessel
   math::Vector3 inertia = link_->GetInertial()->GetPrincipalMoments();
@@ -389,69 +375,13 @@ void UsvPlugin::UpdateChild()
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dmat :\n" << Dmat);
   Eigen::VectorXd Dvec = -1.0*Dmat*state;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec);
-
-  // Wave double
-  double A = param_wave_amp_;
-  double w = 2*3.14159 / param_wave_period_;
-  double k = w*w/9.81;
-  math::Vector2d D = param_wave_dir_;
-  math::Vector2d x = math::Vector2d(pose.pos.x,pose.pos.y);
-  double Ddotx = (D.x*x.x)+(D.y*x.y);
-  double c = cos(k*Ddotx-w*time_now.Float());
-  double s = sin(k*Ddotx-w*time_now.Float());
-  // displacement 
-  double dz = A*c;
-  // Normal, tangent and binormal
-  math::Vector3 B = math::Vector3(1.0,0.0,D.x*k*A*-1.0*s).Normalize();
-  math::Vector3 T = math::Vector3(0.0,1.0,D.y*k*A*-1.0*s).Normalize();
-  math::Vector3 N = math::Vector3(-D.x*k*A*c, -D.y*k*A*c,1.0).Normalize();
-  /*
-  math::Matrix4 teter = math::Matrix4(B[0],B[1],B[2],0,
-				      T[0],T[1],T[2],0,
-				      N[0],N[1],N[2],0,
-				      0,0,0,1);
-  */
-  tf2::Matrix3x3 btn = tf2::Matrix3x3(B[1],B[0],B[2],
-				      T[1],T[0],T[2],
-				      N[1],N[0],N[2]);
- 
-  // Wave rotation - orientation of wave frame
-  tf2::Quaternion wq = tf2::Quaternion();
-  btn.getRotation(wq);
-  math::Vector3 weuler;
-  tf2::Matrix3x3(wq).getEulerYPR(weuler.z,weuler.y,weuler.x);
-  // Vehicle frame
+  
+  // Vehicle frame transform
   tf2::Quaternion vq = tf2::Quaternion();
   tf2::Matrix3x3 m;
   m.setEulerYPR(euler.z,euler.y,euler.x);
   m.getRotation(vq);
   tf2::Transform xform_v = tf2::Transform(vq);
-
-  // Transform
-  tf2::Quaternion vwq = wq*vq;
-  math::Vector3 neweuler;
-  tf2::Matrix3x3(vwq).getEulerYPR(neweuler.z,neweuler.y,neweuler.x);
-
-  // Print
-  /*
-  printf("%f/%f/%f \t %f/%f/%f \t %f/%f/%f\n",
-	 weuler.x,euler.x,neweuler.x,
-	 weuler.y,euler.y,neweuler.y,
-	 weuler.z,euler.z,neweuler.z);
-  */
-  
-  // Restoring/Buoyancy Forces
-  /*
-  double buoy_force = ((water_level_+dz) - pose.pos.z)*param_boat_area_*GRAVITY*water_density_;
-  Eigen::VectorXd buoyVec = Eigen::VectorXd::Zero(6);
-  buoyVec(2) = 0.0; //buoy_force;  // Z direction - shoudl really be in XYZ frame
-  buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*buoy_force; // roll
-  buoyVec(3) = -param_metacentric_width_*sin(neweuler.x)*28.0*9.81; // roll
-  //buoyVec(4) = -param_metacentric_length_*sin(euler.y)*buoy_force; // pitch
-  //buoyVec(4) = -param_metacentric_length_*sin(rpy.y)*28.0*9.81; // pitch
-  buoyVec(4) = -param_metacentric_length_*sin(neweuler.y)*28.0*9.81; // pitch
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"buoyVec :\n" << buoyVec);
-  */
 
   // Inputs 
   Eigen::VectorXd inputVec = Eigen::VectorXd::Zero(6);
@@ -463,7 +393,6 @@ void UsvPlugin::UpdateChild()
   // note, inputVec only includes torque component
   Eigen::VectorXd forceSum = inputVec + amassVec + Dvec;// + buoyVec;
   // Forces in fixed frame
-  //math::Vector3 forceXYZ(0.0,0.0,buoy_force);
   
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   math::Vector3 totalLinear(forceSum(0)+wind_force.x,
@@ -478,94 +407,68 @@ void UsvPlugin::UpdateChild()
   //link_->AddForce(forceXYZ);
 
   // Distribute upward buoyancy force
-  int NN = 2;  // must be factor of 2!
+  int NN = 2;  // must be factor of 2! - only 2 for now!!
   float dx = param_boat_length_/NN;
   float dy = param_boat_width_/NN;
+  // Use list iteration to apply force at four corners, and not in the middle
+  // Efficient?
+  std::vector<int> II;
+  for (int ii=-NN/2; ii<0; ii++){
+    
   int II[]={-1,1};
   std::list<int> Ilist(II,II+sizeof(II)/sizeof(int));
   int JJ[]={-1,1};
   std::list<int> Jlist(JJ,JJ+sizeof(JJ)/sizeof(int));
   
   float ddx, ddy, ddz, buoy_force;
+  double w, k, dz, Ddotx;
+  math::Vector3 X;  // location of vehicle base link
   tf2::Vector3 bpnt(0,0,0);     // grid points on boat
   tf2::Vector3 bpnt_w(0,0,0);   // in world coordinates
-  math::Vector3 bpntm(0,0,0);   // as a math vector
-  float mmm[3][3] ={{0,0,0},{0,0,0},{0,0,0}};
-  ROS_DEBUG_STREAM(mmm[0][0] << ", " << mmm[0][1] << ", " << mmm[0][2]);
-  ROS_DEBUG_STREAM(mmm[1][0] << ", " << mmm[1][1] << ", " << mmm[1][2]);
-  ROS_DEBUG_STREAM(mmm[2][0] << ", " << mmm[2][1] << ", " << mmm[2][2]);
-  //for (int ii=-NN/2; ii<=NN/2; ii++){
-  for (std::list<int>::iterator ii=Ilist.begin();ii != Ilist.end(); ii++){
-    //int ii[]={1};
-    bpnt.setX((*ii)*dx);
-    //bpnt.setX(0);
-    //for (int jj=-NN/2; jj<=NN/2; jj++){
-    for (std::list<int>::iterator jj=Jlist.begin(); jj != Jlist.end(); jj++){
+  math::Vector3 bpntm(0,0,0);   // same, as a math vector
 
+  // Loop over boat grid points
+  for (std::list<int>::iterator ii=Ilist.begin();ii != Ilist.end(); ii++){
+    bpnt.setX((*ii)*dx);  // grid point in boat fram
+    for (std::list<int>::iterator jj=Jlist.begin(); jj != Jlist.end(); jj++){
       bpnt.setY((*jj)*dy);
-      // find displacement of positions relative to boat
-      ROS_DEBUG_STREAM("[" << (*ii) <<","<<(*jj)<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      
+      // Transform from vessel to water/world frame
       bpnt_w = xform_v*bpnt;
-      ROS_DEBUG_STREAM("v frame euler "<<euler);
-      ROS_DEBUG_STREAM("in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
-      // calc force
-      // vertical location of boat grid point
+
+      // Debug
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"[" << (*ii) <<","<<(*jj)<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"v frame euler "<<euler);
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
+
+      // Vertical location of boat grid point in world frame
       ddz = pose.pos.z+bpnt_w.z();
       ROS_DEBUG_STREAM("Z, pose: " << pose.pos.z <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
-      // vertical location of water
-      x.x = pose.pos.x+bpnt_w.x();
-      x.y = pose.pos.y+bpnt_w.y();
-      // sum over all waves
+      
+      // Find vertical displacement of wave field
+      X.x = pose.pos.x+bpnt_w.x();  // World location of grid point
+      X.y = pose.pos.y+bpnt_w.y();
+      // sum vertical dsplacement over all waves
       dz = 0.0;
       for (int ii=0; ii < param_wave_n_; ii++){
-	Ddotx=param_wave_directions_[ii][0]*x.x
-	  +param_wave_directions_[ii][1]*x.y;
+	Ddotx=param_wave_directions_[ii][0]*X.x
+	  +param_wave_directions_[ii][1]*X.y;
 	w = 2.0*3.14159 / param_wave_periods_[ii];
 	k = w*w/9.81;
-	c = cos(k*Ddotx-w*time_now.Float());
-	dz += param_wave_amps_[ii]*c;	
+	dz += param_wave_amps_[ii]*cos(k*Ddotx-w*time_now.Float());;	
       }
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"wave disp: " << dz);
 
-
-      /*
-      for (int kk=0; kk<10; kk++){
-	x.x = ((double)kk)*0.2;
-	x.y = 0.0;
-	Ddotx = (D.x*x.x)+(D.y*x.y);
-	c = cos(k*Ddotx-w*time_now.Float());
-	std::cout << A*c;
-      }
-      std::cout << std::endl;
-
-      for (int kk=0; kk<10; kk++){
-	x.y = ((double)kk)*0.2;
-	x.x = 0.0;
-	Ddotx = (D.x*x.x)+(D.y*x.y);
-	c = cos(k*Ddotx-w*time_now.Float());
-	std::cout << A*c;
-      }
-      std::cout << std::endl;
-      */
-
-	  
-      mmm[(*ii)+1][(*jj)+1]=dz;
-      ROS_DEBUG_STREAM("wave disp: " << dz);      
-      buoy_force = (((water_level_+dz)-(ddz))*(param_boat_area_/((NN+1)*(NN+1)))*GRAVITY*water_density_);
+      // Buoyancy force at grid point
+      buoy_force = (((water_level_+dz)-(ddz))*(param_boat_area_/((NN)*(NN)))*GRAVITY*water_density_);
       ROS_DEBUG_STREAM("buoy_force: " << buoy_force);
-      // apply force
+      // Apply force at grid point
       bpntm=math::Vector3(bpnt.x(),bpnt.y(),bpnt.z());
-      //tf2::Vector3 vertf = xform_v.inverse()*tf2::Vector3(0,0,buoy_force);
-      //link_->AddForceAtRelativePosition(math::Vector3(vertf.x(),vertf.y(),vertf.z()),bpntm);
-      // From web
-      // Appears that position is in the link frame and force is in world frame
+      // From web, Appears that position is in the link frame
+      // and force is in world frame
       link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),bpntm);
     }
   }
-  /*
-  ROS_DEBUG_STREAM(mmm[0][0] << ", " << mmm[0][1] << ", " << mmm[0][2]);
-  ROS_DEBUG_STREAM(mmm[1][0] << ", " << mmm[1][1] << ", " << mmm[1][2]);
-  ROS_DEBUG_STREAM(mmm[2][0] << ", " << mmm[2][1] << ", " << mmm[2][2]);
-  */
   
   // Add input force with offset below vessel
   math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 

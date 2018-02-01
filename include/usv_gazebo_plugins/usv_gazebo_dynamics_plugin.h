@@ -193,10 +193,11 @@ namespace gazebo
     std::vector<float> param_wave_amps_;
     std::vector<float> param_wave_periods_;
     std::vector< std::vector<float> > param_wave_directions_;
-    
+    /* Old - for single wave
     double param_wave_amp_;
     math::Vector2d param_wave_dir_;
     double param_wave_period_;
+    */
 
     /*! Wind velocity in Gazebo coordinates [m/s] */
     math::Vector3 param_wind_velocity_vector_;
