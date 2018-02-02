@@ -253,6 +253,27 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
         0,   0,   0, 0.1, 0, 0, 
         0,   0,   0, 0, 0.1, 0,  
         0,   0,   0, 0, 0, param_N_dot_r_ ;
+
+  Cmat_ =  Eigen::MatrixXd::Zero(6,6);
+  Dmat_ =  Eigen::MatrixXd::Zero(6,6);
+  state_dot_ = Eigen::VectorXd(6);
+  state_ = Eigen::VectorXd(6);
+  amassVec_ = Eigen::VectorXd(6);
+
+  int NN = 2; // must be factor of 2! - only 2 for now!!
+  // x,y grid step increments
+  dx_ = param_boat_length_/NN;
+  dy_ = param_boat_width_/NN;
+  // Vector for interating throug grid points on boat
+  for (int ii=-NN/2; ii<0; ii++){
+    II_.push_back(ii);
+  }
+  for (int ii=1; ii<=NN/2; ii++){
+    II_.push_back(ii);
+  }
+  // Precalculate this to save some time.
+  buoy_frac_ = (param_boat_area_/(NN*NN))*GRAVITY*water_density_;
+  
 }
 
 double UsvPlugin::scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg)
@@ -278,14 +299,12 @@ double UsvPlugin::scaleThrustCmd(double cmd, double max_cmd, double max_pos, dou
 void UsvPlugin::UpdateChild()
 {
   common::Time time_now = this->world_->GetSimTime();
-  common::Time step_time = time_now - prev_update_time_;
-  
-  double dt = step_time.Double();
+  //common::Time step_time = time_now - prev_update_time_;
+  double dt = (time_now - prev_update_time_).Double();
   prev_update_time_ = time_now;
 
   // Enforce command timeout
-  common::Time cmd_time = time_now - last_cmd_drive_time_;
-  double dcmd = cmd_time.Double();
+  double dcmd = (time_now - last_cmd_drive_time_).Double();
   if ( dcmd > cmd_timeout_ )
   {
     ROS_INFO_STREAM_THROTTLE(1.0,"Command timeout!");
@@ -302,87 +321,66 @@ void UsvPlugin::UpdateChild()
   double thrust_right = scaleThrustCmd(last_cmd_drive_right_, param_max_cmd_,
 				      param_max_force_fwd_, 
 				      param_max_force_rev_);
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Thrust: left:" << thrust_left
-		   << " right: " << thrust_right);
   double thrust = thrust_right + thrust_left;
   double torque = (thrust_right - thrust_left)*param_boat_width_;
-
-
-  
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"Thrust: left:" << thrust_left
+			    << " right: " << thrust_right);
   
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
-  pose = link_->GetWorldPose();
-  euler = pose.rot.GetAsEuler();
-  math::Quaternion curr_orientation = pose.rot;
+  pose_ = link_->GetWorldPose();
+  euler_ = pose_.rot.GetAsEuler();
 
   // Get body-centered linear and angular rates
-  math::Vector3 vel_linear_body = link_->GetRelativeLinearVel();  
-  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body);
-  math::Vector3 vel_angular_body = link_->GetRelativeAngularVel();
-  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body);
+  vel_linear_body_ = link_->GetRelativeLinearVel();  
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body_);
+  vel_angular_body_ = link_->GetRelativeAngularVel();
+  ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body_);
   // Estimate the linear and angular accelerations.
   // Note the the GetRelativeLinearAccel() and AngularAccel() functions
   // appear to be unreliable
-  math::Vector3 accel_linear_body = (vel_linear_body - prev_lin_vel_) /dt;
-  prev_lin_vel_ = vel_linear_body;
+  math::Vector3 accel_linear_body = (vel_linear_body_ - prev_lin_vel_) /dt;
+  prev_lin_vel_ = vel_linear_body_;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel linear: " << accel_linear_body);
-  math::Vector3 accel_angular_body = (vel_angular_body - prev_ang_vel_) /dt;
-  prev_ang_vel_ = vel_angular_body;
+  math::Vector3 accel_angular_body = (vel_angular_body_ - prev_ang_vel_) /dt;
+  prev_ang_vel_ = vel_angular_body_;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel angular: " << accel_angular_body);
 
-  // Wind
-  // Transform wind from world coordinates to body coordinates
-  math::Vector3 relative_wind = pose.rot.GetInverse().RotateVector(param_wind_velocity_vector_);
-  // Calculate apparent wind
-  math::Vector3 apparent_wind = relative_wind - vel_linear_body;
-  ROS_DEBUG_STREAM_THROTTLE(0.5,"Relative wind: " << relative_wind);
-  ROS_DEBUG_STREAM_THROTTLE(0.5,"Apparent wind: " << apparent_wind);
-  // Calculate wind force - body coordinates
-  math::Vector3 wind_force(
-			   param_wind_coeff_vector_.x * relative_wind.x * abs(relative_wind.x),
-			   param_wind_coeff_vector_.y * relative_wind.y * abs(relative_wind.y),
-			   -2.0*param_wind_coeff_vector_.z * relative_wind.x * relative_wind.y);
-  
   // Create state and derivative of state (accelerations)
-  Eigen::VectorXd state_dot(6);
-  state_dot << accel_linear_body.x, accel_linear_body.y, accel_linear_body.z, 
+  state_dot_ << accel_linear_body.x, accel_linear_body.y, accel_linear_body.z, 
     accel_angular_body.x, accel_angular_body.y, accel_angular_body.z;
 
-  Eigen::VectorXd state(6);
-  state << vel_linear_body.x, vel_linear_body.y, vel_linear_body.z, 
-    vel_angular_body.x, vel_angular_body.y, vel_angular_body.z;
+  state_ << vel_linear_body_.x, vel_linear_body_.y, vel_linear_body_.z, 
+    vel_angular_body_.x, vel_angular_body_.y, vel_angular_body_.z;
 
   // Added Mass
-  Eigen::VectorXd amassVec = -1.0*Ma_*state_dot;
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"state_dot: \n" << state_dot);
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"amassVec :\n" << amassVec);
+  amassVec_ = -1.0*Ma_*state_dot_;
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"state_dot_: \n" << state_dot_);
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"amassVec :\n" << amassVec_);
   
   // Coriolis - added mass components
-  Eigen::MatrixXd Cmat = Eigen::MatrixXd::Zero(6,6);
-  Cmat(0,5) = param_Y_dot_v_ * vel_linear_body.y;
-  Cmat(1,5) = param_X_dot_u_ * vel_linear_body.x;
-  Cmat(5,0) = param_Y_dot_v_ * vel_linear_body.y;
-  Cmat(5,1) = param_X_dot_u_ * vel_linear_body.x;
-  Eigen::VectorXd Cvec = -1.0*Cmat*state;
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Cvec :\n" << Cvec);
+  Cmat_(0,5) = param_Y_dot_v_ * vel_linear_body_.y;
+  Cmat_(1,5) = param_X_dot_u_ * vel_linear_body_.x;
+  Cmat_(5,0) = param_Y_dot_v_ * vel_linear_body_.y;
+  Cmat_(5,1) = param_X_dot_u_ * vel_linear_body_.x;
+  Cvec_ = -1.0*Cmat_*state_;
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"Cvec :\n" << Cvec_);
 
   // Drag
   //Eigen::MatrixXd Dmat = Eigen::MatrixXd(6,6);
-  Eigen::MatrixXd Dmat = Eigen::MatrixXd::Zero(6,6);
-  Dmat(0,0) = param_X_u_ + param_X_uu_*std::abs(vel_linear_body.x);
-  Dmat(1,1) = param_Y_v_ + param_Y_vv_*std::abs(vel_linear_body.y);
-  Dmat(2,2) = param_Z_w_;
-  Dmat(3,3) = param_K_p_;
-  Dmat(4,4) = param_M_q_;
-  Dmat(5,5) = param_N_r_ + param_N_rr_*std::abs(vel_angular_body.z);
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Dmat :\n" << Dmat);
-  Eigen::VectorXd Dvec = -1.0*Dmat*state;
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec);
+  Dmat_(0,0) = param_X_u_ + param_X_uu_*std::abs(vel_linear_body_.x);
+  Dmat_(1,1) = param_Y_v_ + param_Y_vv_*std::abs(vel_linear_body_.y);
+  Dmat_(2,2) = param_Z_w_;
+  Dmat_(3,3) = param_K_p_;
+  Dmat_(4,4) = param_M_q_;
+  Dmat_(5,5) = param_N_r_ + param_N_rr_*std::abs(vel_angular_body_.z);
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"Dmat :\n" << Dmat_);
+  Dvec_ = -1.0*Dmat_*state_;
+  ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec_);
   
   // Vehicle frame transform
   tf2::Quaternion vq = tf2::Quaternion();
   tf2::Matrix3x3 m;
-  m.setEulerYPR(euler.z,euler.y,euler.x);
+  m.setEulerYPR(euler_.z,euler_.y,euler_.x);
   m.getRotation(vq);
   tf2::Transform xform_v = tf2::Transform(vq);
 
@@ -394,63 +392,45 @@ void UsvPlugin::UpdateChild()
 
   // Sum all forces - in body frame
   // note, inputVec only includes torque component
-  Eigen::VectorXd forceSum = inputVec + amassVec + Dvec;// + buoyVec;
+  Eigen::VectorXd forceSum = inputVec + amassVec_ + Dvec_;// + buoyVec;
   // Forces in fixed frame
-  
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
-  math::Vector3 totalLinear(forceSum(0)+wind_force.x,
-			    forceSum(1)+wind_force.y,
-			    forceSum(2));
-  math::Vector3 totalAngular(forceSum(3),forceSum(4),
-			     forceSum(5)+wind_force.z);
   
   // Add dynamic forces/torques to link at CG
-  link_->AddRelativeForce(totalLinear);
-  link_->AddRelativeTorque(totalAngular);  
-  //link_->AddForce(forceXYZ);
+  link_->AddRelativeForce(math::Vector3(forceSum(0),forceSum(1),forceSum(2)));
+  link_->AddRelativeTorque(math::Vector3(forceSum(3),forceSum(4),forceSum(5)));
 
   // Distribute upward buoyancy force
-  int NN = 2;  // must be factor of 2! - only 2 for now!!
-  float dx = param_boat_length_/NN;
-  float dy = param_boat_width_/NN;
-  // Use list iteration to apply force at four corners, and not in the middle
-  // Efficient?
-  //std::vector<int> II;
-  //for (int ii=-NN/2; ii<0; ii++){
-    
-  int II[]={-1,1};
-  std::list<int> Ilist(II,II+sizeof(II)/sizeof(int));
-  int JJ[]={-1,1};
-  std::list<int> Jlist(JJ,JJ+sizeof(JJ)/sizeof(int));
   
   float ddx, ddy, ddz, buoy_force;
   double w, k, dz, Ddotx;
   math::Vector3 X;  // location of vehicle base link
   tf2::Vector3 bpnt(0,0,0);     // grid points on boat
   tf2::Vector3 bpnt_w(0,0,0);   // in world coordinates
-  math::Vector3 bpntm(0,0,0);   // same, as a math vector
 
   // Loop over boat grid points
-  for (std::list<int>::iterator ii=Ilist.begin();ii != Ilist.end(); ii++){
-    bpnt.setX((*ii)*dx);  // grid point in boat fram
-    for (std::list<int>::iterator jj=Jlist.begin(); jj != Jlist.end(); jj++){
-      bpnt.setY((*jj)*dy);
+  //for (std::list<int>::iterator ii=Ilist.begin();ii != Ilist.end(); ii++){
+  for (std::vector<int>::iterator it=II_.begin(); it != II_.end(); ++it){
+    bpnt.setX((*it)*dx_);  // grid point in boat fram
+    for (std::vector<int>::iterator jt=II_.begin(); jt != II_.end(); ++jt){
+      //for (std::list<int>::iterator jj=Jlist.begin(); jj != Jlist.end(); jj++)
+      bpnt.setY((*jt)*dy_);
       
       // Transform from vessel to water/world frame
       bpnt_w = xform_v*bpnt;
 
       // Debug
-      ROS_DEBUG_STREAM_THROTTLE(1.0,"[" << (*ii) <<","<<(*jj)<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
-      ROS_DEBUG_STREAM_THROTTLE(1.0,"v frame euler "<<euler);
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"[" << (*it) <<","<<(*jt)<< "] grid points"<<bpnt.x() <<","<<bpnt.y() <<","<<bpnt.z());
+      ROS_DEBUG_STREAM_THROTTLE(1.0,"v frame euler "<<euler_);
       ROS_DEBUG_STREAM_THROTTLE(1.0,"in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
 
       // Vertical location of boat grid point in world frame
-      ddz = pose.pos.z+bpnt_w.z();
-      ROS_DEBUG_STREAM("Z, pose: " << pose.pos.z <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
+      ddz = pose_.pos.z+bpnt_w.z();
+      ROS_DEBUG_STREAM("Z, pose: " << pose_.pos.z <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
       
       // Find vertical displacement of wave field
-      X.x = pose.pos.x+bpnt_w.x();  // World location of grid point
-      X.y = pose.pos.y+bpnt_w.y();
+      X.x = pose_.pos.x+bpnt_w.x();  // World location of grid point
+      X.y = pose_.pos.y+bpnt_w.y();
       // sum vertical dsplacement over all waves
       dz = 0.0;
       for (int ii=0; ii < param_wave_n_; ii++){
@@ -463,13 +443,13 @@ void UsvPlugin::UpdateChild()
       ROS_DEBUG_STREAM_THROTTLE(1.0,"wave disp: " << dz);
 
       // Buoyancy force at grid point
-      buoy_force = (((water_level_+dz)-(ddz))*(param_boat_area_/((NN)*(NN)))*GRAVITY*water_density_);
+      buoy_force = (((water_level_+dz)-(ddz))*(buoy_frac_));
       ROS_DEBUG_STREAM("buoy_force: " << buoy_force);
       // Apply force at grid point
-      bpntm=math::Vector3(bpnt.x(),bpnt.y(),bpnt.z());
       // From web, Appears that position is in the link frame
       // and force is in world frame
-      link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),bpntm);
+      link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),
+					math::Vector3(bpnt.x(),bpnt.y(),bpnt.z()));
     }
   }
   
@@ -479,7 +459,7 @@ void UsvPlugin::UpdateChild()
   math::Vector3 inputforce3(thrust, 0,0);
 
   //link_->AddLinkForce(inputforce3,relpos);
-  inputforce3 = curr_orientation.RotateVector(inputforce3);
+  inputforce3 = pose_.rot.RotateVector(inputforce3);
   //link_->AddRelativeForce(inputforce3);
   link_->AddForceAtRelativePosition(inputforce3,relpos);
 }

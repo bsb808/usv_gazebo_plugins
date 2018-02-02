@@ -121,13 +121,27 @@ namespace gazebo
     common::Time last_cmd_drive_time_;  
     double last_cmd_drive_left_;
     double last_cmd_drive_right_;
-    math::Pose pose;
-    math::Vector3 euler;
-    math::Vector3 velocity;
+    math::Pose pose_;
+    math::Vector3 euler_;
+    math::Vector3 vel_linear_body_;
+    math::Vector3 vel_angular_body_;
     math::Vector3 acceleration;
     math::Vector3 angular_velocity_;
     math::Vector3 angular_acceleration_;
+    Eigen::VectorXd state_dot_;
+    Eigen::VectorXd state_;
+    Eigen::VectorXd amassVec_;
+    Eigen::MatrixXd Cmat_;
+    Eigen::VectorXd Cvec_;
+    Eigen::MatrixXd Dmat_;
+    Eigen::VectorXd Dvec_;
 
+    // For Buoyancy calculation
+    float buoy_frac_;
+    float dx_;
+    float dy_;
+    std::vector<int> II_;
+    
     // Values to set via Plugin Parameters
     /*! Plugin Parameter: Added mass in surge, X_\dot{u} */
     double param_X_dot_u_;
