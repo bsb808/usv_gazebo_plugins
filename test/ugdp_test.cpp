@@ -12,7 +12,7 @@
 int main(int argc, char **argv){
 
   gazebo::UsvPlugin usvp;
-  usvp.Load(physics::ModelPtr(),sdf::ElementPtr());
+  usvp.Load(gazebo::physics::ModelPtr(),sdf::ElementPtr());
   usvp.UpdateChild();
 }
 

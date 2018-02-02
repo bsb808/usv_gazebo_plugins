@@ -170,6 +170,8 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 						param_metacentric_length_);
   param_metacentric_width_ = getSdfParamDouble(_sdf,"metacentricWidth",
 						param_metacentric_width_);
+
+  /*
   if (_sdf->HasElement("wind_velocity_vector")){
     param_wind_velocity_vector_ = _sdf->GetElement("wind_velocity_vector")->Get<math::Vector3>();
   }
@@ -186,7 +188,8 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     param_wind_coeff_vector_ = math::Vector3(0,0,0);
   }
   ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
-
+  */
+  
   // Wave parameters
   std::ostringstream buf;
   math::Vector2d tmpm;
@@ -412,8 +415,8 @@ void UsvPlugin::UpdateChild()
   float dy = param_boat_width_/NN;
   // Use list iteration to apply force at four corners, and not in the middle
   // Efficient?
-  std::vector<int> II;
-  for (int ii=-NN/2; ii<0; ii++){
+  //std::vector<int> II;
+  //for (int ii=-NN/2; ii<0; ii++){
     
   int II[]={-1,1};
   std::list<int> Ilist(II,II+sizeof(II)/sizeof(int));
@@ -487,6 +490,7 @@ void UsvPlugin::OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg)
     last_cmd_drive_left_ = msg->left;
     last_cmd_drive_right_ = msg->right;
 }
+
 
 void UsvPlugin::spin()
 {

@@ -50,10 +50,18 @@ link_directories(
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 
+if (NOT GAZEBO_VERSION VERSION_LESS 6.0)
+  catkin_package(  INCLUDE_DIRS include LIBRARIES gazebo_ros_elevator)
+endif()
+
+if (NOT GAZEBO_VERSION VERSION_LESS 7.3)
+  catkin_package(INCLUDE_DIRS include LIBRARIES gazebo_ros_harness)
+endif()
+
 catkin_package(
    INCLUDE_DIRS include
    CATKIN_DEPENDS roscpp usv_msgs geometry_msgs nav_msgs
-   DEPENDS gazebo
+   DEPENDS 
    LIBRARIES
 )
 
@@ -61,7 +69,7 @@ catkin_package(
 ## Build ##
 ###########
 
-## Declare a C++ library
+
 add_library(usv_gazebo_dynamics_plugin
   src/usv_gazebo_dynamics_plugin.cpp
   )
@@ -71,14 +79,26 @@ target_link_libraries(usv_gazebo_dynamics_plugin
   ${GAZEBO_LIBRARIES}
   ${Boost_LIBRARIES}
   ${Eigen_LIBRARIES}
+  )
+
+add_library(usv_gazebo_wind_plugin
+  src/usv_gazebo_wind_plugin.cpp
+  )
+
+target_link_libraries(usv_gazebo_wind_plugin
+  ${catkin_LIBRARIES}
+  ${GAZEBO_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${Eigen_LIBRARIES}
 )
 
-add_executable(ugdp_test
-  test/ugdp_test.cpp
-  )
-target_link_libraries(ugdp_test
-  usv_gazebo_dynamics_plugin
-  )
+
+#add_executable(ugdp_test
+#  test/ugdp_test.cpp
+#  )
+#target_link_libraries(ugdp_test
+#  usv_gazebo_dynamics_plugin
+#  )
 
 add_executable(frame_test
   test/frame_test.cpp
