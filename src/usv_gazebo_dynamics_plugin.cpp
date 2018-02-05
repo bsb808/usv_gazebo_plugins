@@ -76,7 +76,6 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   water_level_ = 0.5;
   water_density_ = 997.7735;
-  cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
 
   param_X_dot_u_ = 5;  // Added mass
   param_Y_dot_v_ = 5;
@@ -90,12 +89,10 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_M_q_ = 20.0;
   param_N_r_ = 20;
   param_N_rr_ = 0.0;
-  param_max_cmd_ = 1.0;
-  param_max_force_fwd_ = 100.0;
-  param_max_force_rev_ = -100.0;
+
   param_boat_width_ = 1.0;
   param_boat_length_ = 1.35;
-  param_thrust_z_offset_ = -0.01;
+
   param_metacentric_length_ = 0.4 ; // From clearpath
   param_metacentric_width_ = 0.4;  // ditto
   param_boat_area_ = 0.48;  // Clearpath: 1.2m in length, 0.2m in width, 2 pontoons.
@@ -139,7 +136,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
   water_level_ = getSdfParamDouble(_sdf,"waterLevel",water_level_);
   water_density_ = getSdfParamDouble(_sdf,"waterDensity",water_density_);
-  cmd_timeout_ = getSdfParamDouble(_sdf,"cmdTimeout",cmd_timeout_);
+
   param_X_dot_u_ = getSdfParamDouble(_sdf,"xDotU",param_X_dot_u_);
   param_Y_dot_v_ = getSdfParamDouble(_sdf,"yDotV",param_Y_dot_v_);
   param_N_dot_r_ = getSdfParamDouble(_sdf,"nDotR",param_N_dot_r_);
@@ -154,41 +151,15 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   param_N_r_ = getSdfParamDouble(_sdf,"nR",param_N_r_);
   param_N_rr_ = getSdfParamDouble(_sdf,"nRR",param_N_rr_);
 
-  param_max_cmd_ = getSdfParamDouble(_sdf,"maxCmd",param_max_cmd_);
-  param_max_force_fwd_ = getSdfParamDouble(_sdf,"maxForceFwd",
-					   param_max_force_fwd_);
-  param_max_force_rev_ = getSdfParamDouble(_sdf,"maxForceRev",
-					   param_max_force_rev_);
-  param_max_force_rev_ = -1.0*std::abs(param_max_force_rev_);  // make negative
 
   param_boat_area_ = getSdfParamDouble(_sdf,"boatArea",param_boat_area_);
   param_boat_width_ = getSdfParamDouble(_sdf,"boatWidth",param_boat_width_);
   param_boat_length_ = getSdfParamDouble(_sdf,"boatLength",param_boat_length_);
-  param_thrust_z_offset_ = getSdfParamDouble(_sdf,"thrustOffsetZ",
-					 param_thrust_z_offset_);
+
   param_metacentric_length_ = getSdfParamDouble(_sdf,"metacentricLength",
 						param_metacentric_length_);
   param_metacentric_width_ = getSdfParamDouble(_sdf,"metacentricWidth",
 						param_metacentric_width_);
-
-  /*
-  if (_sdf->HasElement("wind_velocity_vector")){
-    param_wind_velocity_vector_ = _sdf->GetElement("wind_velocity_vector")->Get<math::Vector3>();
-  }
-  else{
-    param_wind_velocity_vector_ = math::Vector3(0,0,0);
-  }
-  ROS_INFO_STREAM("Wind velocity vector = "<<param_wind_velocity_vector_.x << " , " << param_wind_velocity_vector_.y << " , " << param_wind_velocity_vector_.z);
-
-
-  if (_sdf->HasElement("wind_coeff_vector")){
-    param_wind_coeff_vector_ = _sdf->GetElement("wind_coeff_vector")->Get<math::Vector3>();
-  }
-  else{
-    param_wind_coeff_vector_ = math::Vector3(0,0,0);
-  }
-  ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
-  */
   
   // Wave parameters
   std::ostringstream buf;
@@ -228,16 +199,14 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   ROS_INFO("USV Dynamics Parameters: Plugin Parameters");
 
   //initialize time and odometry position
-  prev_update_time_ = last_cmd_drive_time_ = this->world_->GetSimTime();
+  prev_update_time_ = this->world_->GetSimTime();
 
-  // Initialize the ROS node and subscribe to cmd_drive
+  // Initialize the ROS node
   int argc = 0;
   char** argv = NULL;
-  ros::init(argc, argv, "usv_gazebo", 
+  ros::init(argc, argv, "usv_dynamics_gazebo", 
 	    ros::init_options::NoSigintHandler|ros::init_options::AnonymousName);
   rosnode_ = new ros::NodeHandle( node_namespace_ );
-
-  cmd_drive_sub_ = rosnode_->subscribe("cmd_drive", 1, &UsvPlugin::OnCmdDrive, this );
 
   // Listen to the update event. This event is broadcast every
   // simulation iteration.
@@ -276,55 +245,13 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   
 }
 
-double UsvPlugin::scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg)
-{
-  double val = 0.0;
-  if (cmd >= 0.0){
-    val = cmd/max_cmd*max_pos;
-    if (val > max_pos)
-    {
-      val = max_pos;
-    }
-  }
-  else  // cmd is less than zero
-  {
-    val = -1.0*std::abs(cmd)/max_cmd*std::abs(max_neg);
-    if (std::abs(val) > std::abs(max_neg))
-    {
-      val = -1.0*std::abs(max_neg);  // ensure it is negative
-    }
-  }
-  return val;  
-}
+
 void UsvPlugin::UpdateChild()
 {
   common::Time time_now = this->world_->GetSimTime();
   //common::Time step_time = time_now - prev_update_time_;
   double dt = (time_now - prev_update_time_).Double();
   prev_update_time_ = time_now;
-
-  // Enforce command timeout
-  double dcmd = (time_now - last_cmd_drive_time_).Double();
-  if ( dcmd > cmd_timeout_ )
-  {
-    ROS_INFO_STREAM_THROTTLE(1.0,"Command timeout!");
-    last_cmd_drive_left_ = 0.0;
-    last_cmd_drive_right_ = 0.0;
-  }
-  // Scale commands to thrust and torque forces
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Last cmd: left:" << last_cmd_drive_left_
-		   << " right: " << last_cmd_drive_right_);
-  double thrust_left = scaleThrustCmd(last_cmd_drive_left_, param_max_cmd_,
-				      param_max_force_fwd_, 
-				      param_max_force_rev_);
-
-  double thrust_right = scaleThrustCmd(last_cmd_drive_right_, param_max_cmd_,
-				      param_max_force_fwd_, 
-				      param_max_force_rev_);
-  double thrust = thrust_right + thrust_left;
-  double torque = (thrust_right - thrust_left)*param_boat_width_;
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"Thrust: left:" << thrust_left
-			    << " right: " << thrust_right);
   
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
   pose_ = link_->GetWorldPose();
@@ -384,15 +311,8 @@ void UsvPlugin::UpdateChild()
   m.getRotation(vq);
   tf2::Transform xform_v = tf2::Transform(vq);
 
-  // Inputs 
-  Eigen::VectorXd inputVec = Eigen::VectorXd::Zero(6);
-  //inputVec(0) = thrust;
-  inputVec(5) = torque;
-  ROS_DEBUG_STREAM_THROTTLE(1.0,"inputVec :\n" << inputVec);
-
   // Sum all forces - in body frame
-  // note, inputVec only includes torque component
-  Eigen::VectorXd forceSum = inputVec + amassVec_ + Dvec_;// + buoyVec;
+  Eigen::VectorXd forceSum = amassVec_ + Dvec_;// + buoyVec;
   // Forces in fixed frame
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   
@@ -452,25 +372,7 @@ void UsvPlugin::UpdateChild()
 					math::Vector3(bpnt.x(),bpnt.y(),bpnt.z()));
     }
   }
-  
-  // Add input force with offset below vessel
-  math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 
-		       param_thrust_z_offset_);  // relative pos of thrusters
-  math::Vector3 inputforce3(thrust, 0,0);
-
-  //link_->AddLinkForce(inputforce3,relpos);
-  inputforce3 = pose_.rot.RotateVector(inputforce3);
-  //link_->AddRelativeForce(inputforce3);
-  link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
-
-void UsvPlugin::OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg)
-{
-    last_cmd_drive_time_ = this->world_->GetSimTime();
-    last_cmd_drive_left_ = msg->left;
-    last_cmd_drive_right_ = msg->right;
-}
-
 
 void UsvPlugin::spin()
 {

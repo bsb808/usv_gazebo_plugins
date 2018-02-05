@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:macro name="usv_thrust_gazebo" params="name">
+    <!--Gazebo Plugin for simulating WAM-V dynamics-->
+    <gazebo >
+      <plugin name="usv_thrust_${name}" filename="libusv_gazebo_thrust_plugin.so">
+	<bodyName>base_link</bodyName>
+
+	<!-- General dimensions -->
+	<boatArea>2.2</boatArea>
+	<boatWidth>2.4</boatWidth>
+	<boatLength>4.9</boatLength>
+	<thrustOffsetZ>-0.04</thrustOffsetZ>
+	<!-- Thrust specification -->
+	<maxCmd>1.0</maxCmd>
+	<maxForceFwd>254.0</maxForceFwd>
+	<maxForceRev>-254.0</maxForceRev>
+	
+      </plugin>
+      </gazebo>
+  </xacro:macro>
+</robot>

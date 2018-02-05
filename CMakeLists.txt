@@ -81,6 +81,17 @@ target_link_libraries(usv_gazebo_dynamics_plugin
   ${Eigen_LIBRARIES}
   )
 
+add_library(usv_gazebo_thrust_plugin
+  src/usv_gazebo_thrust_plugin.cpp
+  )
+
+target_link_libraries(usv_gazebo_thrust_plugin
+  ${catkin_LIBRARIES}
+  ${GAZEBO_LIBRARIES}
+  ${Boost_LIBRARIES}
+  ${Eigen_LIBRARIES}
+  )
+
 add_library(usv_gazebo_wind_plugin
   src/usv_gazebo_wind_plugin.cpp
   )

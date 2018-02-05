@@ -64,11 +64,6 @@ namespace gazebo
     /*! Presumably this would get called when there is a collision, 
       but not implemented! */
     void OnContact(const std::string &name, const physics::Contact &contact);
-    /*!
-      Callback for Drive commands
-      \param msg usv_msgs UsvDrive message
-    */
-    void OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg);
 
     /*! ROS spin once */
     void spin();
@@ -77,16 +72,6 @@ namespace gazebo
 
      */
     double getSdfParamDouble(sdf::ElementPtr sdfPtr,const std::string &param_name,double default_val);
-
-    /*! Takes ROS Kingfisher Drive commands and scales them by max thrust 
-      
-      \param cmd ROS drive command
-      \param max_cmd  Maximum value expected for commands - scaling factor
-      \param max_pos  Maximum positive force value
-      \param max_neg  Maximum negative force value
-      \return Value scaled and saturated
-     */
-    double scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg);
 
     /// Parameters
     std::string node_namespace_;
@@ -97,8 +82,6 @@ namespace gazebo
     ros::Publisher sensor_state_pub_;
     ros::Publisher odom_pub_;
     ros::Publisher joint_state_pub_;
-    
-    ros::Subscriber cmd_drive_sub_;
     
     //GazeboRosPtr gazebo_ros_;
     //physics::ModelPtr parent;
@@ -118,9 +101,6 @@ namespace gazebo
     common::Time prev_update_time_;
     math::Vector3 prev_lin_vel_;
     math::Vector3 prev_ang_vel_;
-    common::Time last_cmd_drive_time_;  
-    double last_cmd_drive_left_;
-    double last_cmd_drive_right_;
     math::Pose pose_;
     math::Vector3 euler_;
     math::Vector3 vel_linear_body_;
@@ -167,21 +147,10 @@ namespace gazebo
     double param_N_r_;
     /*! Plugin Parameter: Quadratic drag in yaw*/
     double param_N_rr_;
-
-
-    /*! Plugin Parameter: Maximum (abs val) of Drive commands. typ. +/-1.0 */
-    double param_max_cmd_;
-    /*! Plugin Parameter: Maximum forward force [N] */
-    double param_max_force_fwd_;
-    /*! Plugin Parameter: Maximum reverse force [N] */
-    double param_max_force_rev_;
-
     /*! Plugin Parameter: Boat width [m] */
     double param_boat_width_;
     /*! Plugin Parameter: Boat length [m] */
     double param_boat_length_;
-    /*! Plugin Parameter: Z offset for applying forward thrust */
-    double param_thrust_z_offset_;
     /*! Plugin Parameter: Horizontal surface area [m^2] */
     double param_boat_area_ ;
     /*! Plugin Parameter: Metacentric length [m] */
@@ -197,8 +166,6 @@ namespace gazebo
     double water_level_;
     /* Water density [kg/m^3] */
     double water_density_;
-    /*! Timeout for recieving Drive commands [s]*/
-    double cmd_timeout_;
     /*! Added mass matrix, 6x6 */
     Eigen::MatrixXd Ma_;
     

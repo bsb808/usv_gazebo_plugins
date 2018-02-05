@@ -1,0 +1,93 @@
+\documentclass[11pt]{article}
+%\usepackage[firstpage]{draftwatermark}
+\usepackage{times}
+\usepackage{pdfpages}
+\usepackage{fullpage}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{enumitem}
+\usepackage{indentfirst}
+\usepackage{subcaption}
+\usepackage{units}
+
+% Highlighting
+\usepackage{color,soul}
+\DeclareRobustCommand{\hlr}[1]{{\sethlcolor{red}\hl{#1}}}
+\DeclareRobustCommand{\hlg}[1]{{\sethlcolor{green}\hl{#1}}}
+\DeclareRobustCommand{\hlb}[1]{{\sethlcolor{blue}\hl{#1}}}
+\DeclareRobustCommand{\hly}[1]{{\sethlcolor{yellow}\hl{#1}}}
+
+\setcounter{secnumdepth}{4}
+\graphicspath{{images/}}
+\pagestyle{fancy}
+
+% Conditional for notes
+\newif\ifnotes
+\notesfalse
+
+
+\newcommand{\doctitle}{Wind Plugin Theory of Operation}
+
+\newcommand{\docnumber}{\doctitle}
+
+\addtolength{\headheight}{2em}
+\addtolength{\headsep}{1.5em}
+\lhead{\docnumber}
+\rhead{}
+
+\newcommand{\capt}[1]{\caption{\small \em #1}}
+
+\cfoot{\small Brian Bingham \today \\ \thepage}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\newenvironment{xitemize}{\begin{itemize}\addtolength{\itemsep}{-0.75em}}{\end{itemize}}
+\newenvironment{tasklist}{\begin{enumerate}[label=\textbf{\thesubsubsection-\arabic*},ref=\thesubsubsection-\arabic*,leftmargin=*]}{\end{enumerate}}
+\newcommand\todo[1]{{\bf TODO: #1}}
+\setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{4}
+
+\makeatletter
+\newcommand*{\compress}{\@minipagetrue}
+\makeatother
+
+%\renewcommand{\chaptername}{Volume}
+%\renewcommand{\thesection}{\Roman{section}}
+%\renewcommand{\thesubsection}{\Roman{section}-\Alph{subsection}}
+
+\begin{document}
+
+\newpage
+% Title Page
+\setcounter{page}{1}
+\begin{center}
+{\huge \doctitle}
+\end{center}
+
+\section{Overview}
+
+The influence of wind on the motion of the USV is implemented as a simple model plugin for Gazebo.  Currently there is only one implementation, but other implementations, with varying fidelity, could be developed in the future.
+
+
+\section{usv gazebo wind plugin}
+
+The wind forces (x and y) and moment (yaw) are predicted following the models presented by Fossen~\cite{fossen94guidance}.
+
+The wind velocity on the vessel ($V_w$) is considered to be a constant velocity and direction.  If desired, this could be extended to include a parameterized wind spectrum the distribution of wind velocities over time, e.g., average wind velocity, gusts, etc.  For the current implementation the constant wind velocity is specified as a three element vector which specifies the wind speed the world-frame x, y and z coordinates with units of \unitfrac[]{m}{s}.  The z component is ignored.
+
+The resulting forces and moments on the vessel are determined based on the user-specified force/moment coefficients and the relative wind velocity.  Within the plugin, the relative (or apparent) wind velocity vector $V_R$.  The forces/moment are calculated as
+\begin{eqnarray}
+  X_{wind} &=& C_X V_{R_x} |V_{R_x}| \\
+  Y_{wind} &=& C_Y V_{R_y} |V_{R_y}| \\
+  N_{wind} &=& -2.0 C_N V_{R_x} V_{R_y} \\
+\end{eqnarray}
+where $C_X$, $C_Y$ and $C_N$ are specified as the three element \verb+wind_coeff_vector+.  Approximate values for these coefficients are given in \cite{sarda17station} which can then be tuned to give reasonable response.
+
+%\newpage
+%\setcounter{page}{1}
+\bibliographystyle{ieeetr}
+\bibliography{refs}
+
+\end{document}
