@@ -40,4 +40,4 @@ display: $(BASE_NAME).pdf
 	epstopdf $<
 
 clean:
-	rm -rf *.ps *.dvi *.log *.aux *.blg *.toc missfont.log *.bbl $(BASE_NAME).pdf doxygen html latex *.out
+	rm -rf *.ps *.dvi *.log *.aux *.blg *.toc missfont.log *.bbl doxygen html latex *.out

@@ -6,6 +6,8 @@
       <plugin name="usv_thrust_${name}" filename="libusv_gazebo_thrust_plugin.so">
 	<bodyName>base_link</bodyName>
 
+	<!-- Which thruster curve to use -->
+	<mappingType>1</mappingType>
 	<!-- General dimensions -->
 	<boatArea>2.2</boatArea>
 	<boatWidth>2.4</boatWidth>
@@ -13,8 +15,9 @@
 	<thrustOffsetZ>-0.04</thrustOffsetZ>
 	<!-- Thrust specification -->
 	<maxCmd>1.0</maxCmd>
-	<maxForceFwd>254.0</maxForceFwd>
-	<maxForceRev>-254.0</maxForceRev>
+	<maxForceFwd>250.0</maxForceFwd>
+	<maxForceRev>-100.0</maxForceRev>
+	<cmdTimeout>1.0</cmdTimeout>
 	
       </plugin>
       </gazebo>

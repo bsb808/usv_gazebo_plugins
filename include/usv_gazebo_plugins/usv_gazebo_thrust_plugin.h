@@ -25,6 +25,7 @@ along with this package.  If not, see <http://www.gnu.org/licenses/>.
 
 // C++
 #include <algorithm>  // min/mzx
+#include <math.h>
 
 // Gazebo
 #include <gazebo/common/common.hh>
@@ -76,7 +77,12 @@ namespace gazebo
       \param max_neg  Maximum negative force value
       \return Value scaled and saturated
      */
-    double scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg);
+    double scaleThrustCmd(double cmd);
+
+    double glf(double x, float A, float K, float B,
+	       float v, float C, float M);
+    
+    double glfThrustCmd(double cmd);
 
     /// Parameters
     std::string node_namespace_;
@@ -108,6 +114,7 @@ namespace gazebo
     double last_cmd_drive_right_;
 
 
+    int param_mapping_type_;
     /*! Plugin Parameter: Maximum (abs val) of Drive commands. typ. +/-1.0 */
     double param_max_cmd_;
     /*! Plugin Parameter: Maximum forward force [N] */

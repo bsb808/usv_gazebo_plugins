@@ -69,6 +69,7 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   // Set default values
   node_namespace_ = "";
   cmd_timeout_ = 1.0; // how long to allow no input on cmd_drive
+  param_mapping_type_ = 0;
   param_max_cmd_ = 1.0;
   param_max_force_fwd_ = 100.0;
   param_max_force_rev_ = -100.0;
@@ -113,8 +114,21 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     ROS_INFO_STREAM("USV Model Link Name = " << link_name_);
   }
 
-
+  
   cmd_timeout_ = getSdfParamDouble(_sdf,"cmdTimeout",cmd_timeout_);
+  int tmp = 0;
+  if (_sdf->HasElement("mappingType") && _sdf->GetElement("mappingType")->GetValue()) {
+    param_mapping_type_ = _sdf->GetElement("mappingType")->Get<int>();
+    ROS_INFO_STREAM("Parameter found - setting <mappingType> to <" << param_mapping_type_ <<">.");
+  }
+  else{
+    ROS_INFO_STREAM("Parameter <mappingType> not found: Using default value of <" << param_mapping_type_ << ">.");
+  }
+  // verify
+  if ( (param_mapping_type_ > 1) || (param_mapping_type_ < 0) ){
+    ROS_FATAL_STREAM("Cannot use a mappingType of " << param_mapping_type_);
+    param_mapping_type_ = 0;
+  }
   param_max_cmd_ = getSdfParamDouble(_sdf,"maxCmd",param_max_cmd_);
   param_max_force_fwd_ = getSdfParamDouble(_sdf,"maxForceFwd",
 					   param_max_force_fwd_);
@@ -146,20 +160,47 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   
 }
 
-double UsvThrust::scaleThrustCmd(double cmd, double max_cmd, double max_pos, double max_neg)
+double UsvThrust::scaleThrustCmd(double cmd)
 {
   double val = 0.0;
   if (cmd >= 0.0){
-    val = cmd/max_cmd*max_pos;
-    val = std::min(val,max_pos);
+    val = cmd/param_max_cmd_*param_max_force_fwd_;
+    val = std::min(val,param_max_force_fwd_);
   }
   else  // cmd is less than zero
   {
-    val = -1.0*std::abs(cmd)/max_cmd*std::abs(max_neg);
-    val = std::max(val,max_neg);
+    val = -1.0*std::abs(cmd)/param_max_cmd_*std::abs(param_max_force_rev_);
+    val = std::max(val,param_max_force_rev_);
   }
   return val;  
 }
+
+
+double UsvThrust::glf(double x, float A, float K, float B,
+		      float v, float C, float M){
+  return A+ (K-A) / (pow(C+exp(-B*(x-M)),1.0/v));
+}
+
+double UsvThrust::glfThrustCmd(double cmd)
+{
+  double val = 0.0;
+  if (cmd > 0.01){
+    val = glf(cmd,0.01,59.82,5.0,0.38,0.56,0.28);
+    val = std::min(val,param_max_force_fwd_);
+  }
+  else if (cmd < 0.01){ 
+    val = glf(cmd,-199.13,-0.09,8.84,5.34,0.99,-0.57);
+    val = std::max(val,param_max_force_rev_);
+  }
+  else{
+    val = 0.0;
+  }
+  ROS_INFO_STREAM_THROTTLE(0.5,cmd << ": " << val << " / " << val/param_max_force_fwd_);
+  return val;
+  
+}
+
+
 void UsvThrust::UpdateChild()
 {
   common::Time time_now = this->world_->GetSimTime();
@@ -169,7 +210,7 @@ void UsvThrust::UpdateChild()
   
   // Enforce command timeout
   double dcmd = (time_now - last_cmd_drive_time_).Double();
-  if ( dcmd > cmd_timeout_ )
+  if ( (dcmd > cmd_timeout_) && (cmd_timeout_ > 0.0) )
   {
     ROS_INFO_STREAM_THROTTLE(1.0,"Command timeout!");
     last_cmd_drive_left_ = 0.0;
@@ -178,13 +219,24 @@ void UsvThrust::UpdateChild()
   // Scale commands to thrust and torque forces
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Last cmd: left:" << last_cmd_drive_left_
 		   << " right: " << last_cmd_drive_right_);
-  double thrust_left = scaleThrustCmd(last_cmd_drive_left_, param_max_cmd_,
-				      param_max_force_fwd_, 
-				      param_max_force_rev_);
+  double thrust_left = 0.0;
+  double thrust_right = 0.0;
+  switch(param_mapping_type_){
+  case 0: // Simplest, linear
+    thrust_left = scaleThrustCmd(last_cmd_drive_left_);
+    thrust_right = scaleThrustCmd(last_cmd_drive_right_);
+    break;
+  case 1: // GLF
+    thrust_left = glfThrustCmd(last_cmd_drive_left_);
+    thrust_right = glfThrustCmd(last_cmd_drive_right_);
+    break;
+  default:
+    ROS_FATAL_STREAM("Cannot use mappingType="<<param_mapping_type_);
+    break;
+  
+    
+  } // eo switch
 
-  double thrust_right = scaleThrustCmd(last_cmd_drive_right_, param_max_cmd_,
-				      param_max_force_fwd_, 
-				      param_max_force_rev_);
   double thrust = thrust_right + thrust_left;
   double torque = (thrust_right - thrust_left)*param_boat_width_;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Thrust: left:" << thrust_left
