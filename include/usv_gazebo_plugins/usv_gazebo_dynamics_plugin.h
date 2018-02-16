@@ -37,7 +37,8 @@ along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/TwistWithCovariance.h>
 #include <geometry_msgs/PoseWithCovariance.h>
-#include <usv_msgs/UsvDrive.h>
+//#include <usv_msgs/UsvDrive.h>
+//#include <usv_gazebo_plugins/UsvDrive.h>
 
 #include <Eigen/Core>
 				    //#include <tf/transform_broadcaster.h>

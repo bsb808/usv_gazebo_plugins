@@ -6,12 +6,18 @@ project(usv_gazebo_plugins)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS 
   cmake_modules
-  roscpp 
-  gazebo_ros 
-  usv_msgs
+  gazebo_plugins
+  gazebo_ros
+  geometry_msgs
+  hector_gazebo_plugins
+  message_generation
+  nav_msgs
+  roscpp
+  std_msgs
   nav_msgs
   geometry_msgs
-)
+  )
+
 
 ## Gazebo
 find_package(gazebo REQUIRED)
@@ -21,34 +27,37 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 #find_package(Boost REQUIRED COMPONENTS system)
 find_package(Boost REQUIRED COMPONENTS thread)
 
-
 ## Eigen
 find_package(Eigen REQUIRED)
 #include_directories(${Eigen_INCLUDE_DIRS})
 #include_directories(${EIGEN_INCLUDE_DIRS}) 
 #add_definitions(${EIGEN_DEFINITIONS})
 
-include_directories( include
-  ${Boost_INCLUDE_DIR} 
-  ${catkin_INCLUDE_DIRS} 
-  ${GAZEBO_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
-  )
-link_directories(
-  ${GAZEBO_LIBRARY_DIRS}
-  ${catkin_LIBRARY_DIRS}
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS} -std=c++11 -Wall -Wextra")
+
+
+########################
+## Message generation ##
+########################
+
+# Generate messages in the 'msg' folder
+add_message_files(
+  FILES
+  UsvDrive.msg
   )
 
+## Generate added messages and services with any dependencies listed here
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  nav_msgs
+  std_msgs
+)
 
 ###################################
 ## catkin specific configuration ##
 ###################################
-## The catkin_package macro generates cmake config files for your package
-## Declare things to be passed to dependent projects
-## INCLUDE_DIRS: uncomment this if you package contains header files
-## LIBRARIES: libraries you create in this project that dependent projects also need
-## CATKIN_DEPENDS: catkin_packages dependent projects also need
-## DEPENDS: system dependencies of this project that dependent projects also need
+
 
 if (NOT GAZEBO_VERSION VERSION_LESS 6.0)
   catkin_package(  INCLUDE_DIRS include LIBRARIES gazebo_ros_elevator)
@@ -60,7 +69,7 @@ endif()
 
 catkin_package(
    INCLUDE_DIRS include
-   CATKIN_DEPENDS roscpp usv_msgs geometry_msgs nav_msgs
+   CATKIN_DEPENDS roscpp message_runtime std_msgs geometry_msgs nav_msgs
    DEPENDS 
    LIBRARIES
 )
@@ -69,6 +78,17 @@ catkin_package(
 ## Build ##
 ###########
 
+
+include_directories( include
+  ${Boost_INCLUDE_DIR} 
+  ${catkin_INCLUDE_DIRS} 
+  ${GAZEBO_INCLUDE_DIRS}
+  ${Eigen_INCLUDE_DIRS}
+  )
+link_directories(
+  ${GAZEBO_LIBRARY_DIRS}
+  ${catkin_LIBRARY_DIRS}
+  )
 
 add_library(usv_gazebo_dynamics_plugin
   src/usv_gazebo_dynamics_plugin.cpp

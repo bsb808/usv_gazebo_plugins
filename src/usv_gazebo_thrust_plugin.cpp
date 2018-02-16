@@ -81,7 +81,7 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   ROS_INFO_STREAM("Enumerating Model...");
   ROS_INFO_STREAM("Model name = "<< model_->GetName());
   physics::Link_V links = model_->GetLinks();
-  for (int ii=0; ii<links.size(); ii++){
+  for (unsigned int ii=0; ii<links.size(); ii++){
     ROS_INFO_STREAM("Link: "<<links[ii]->GetName());
   }
 
@@ -114,9 +114,7 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     ROS_INFO_STREAM("USV Model Link Name = " << link_name_);
   }
 
-  
   cmd_timeout_ = getSdfParamDouble(_sdf,"cmdTimeout",cmd_timeout_);
-  int tmp = 0;
   if (_sdf->HasElement("mappingType") && _sdf->GetElement("mappingType")->GetValue()) {
     param_mapping_type_ = _sdf->GetElement("mappingType")->Get<int>();
     ROS_INFO_STREAM("Parameter found - setting <mappingType> to <" << param_mapping_type_ <<">.");
@@ -204,8 +202,6 @@ double UsvThrust::glfThrustCmd(double cmd)
 void UsvThrust::UpdateChild()
 {
   common::Time time_now = this->world_->GetSimTime();
-  //common::Time step_time = time_now - prev_update_time_;
-  double dt = (time_now - prev_update_time_).Double();
   prev_update_time_ = time_now;
   
   // Enforce command timeout
@@ -259,7 +255,7 @@ void UsvThrust::UpdateChild()
   link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
 
-void UsvThrust::OnCmdDrive( const usv_msgs::UsvDriveConstPtr &msg)
+void UsvThrust::OnCmdDrive( const usv_gazebo_plugins::UsvDriveConstPtr &msg)
 {
     last_cmd_drive_time_ = this->world_->GetSimTime();
     last_cmd_drive_left_ = msg->left;
