@@ -105,6 +105,10 @@ add_library(usv_gazebo_thrust_plugin
   src/usv_gazebo_thrust_plugin.cpp
   )
 
+add_dependencies(usv_gazebo_thrust_plugin
+  usv_gazebo_plugins_generate_messages_cpp
+)
+
 target_link_libraries(usv_gazebo_thrust_plugin
   ${catkin_LIBRARIES}
   ${GAZEBO_LIBRARIES}
