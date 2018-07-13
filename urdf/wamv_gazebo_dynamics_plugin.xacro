@@ -32,7 +32,7 @@
 	<boatLength>4.9</boatLength>
 	<thrustOffsetZ>-0.04</thrustOffsetZ>
 	<metacentricLength>0.4</metacentricLength>
-	<metacentricWidth>0.4</metacentricWidth>
+	<metacentricWidth>0.45</metacentricWidth>
 	
 	<!-- Wind -->
 	<wind_velocity_vector>0 0 0 </wind_velocity_vector>
@@ -45,7 +45,7 @@
 	<wave_direction>1 1</wave_direction>
 
 	<!-- Waves x3 -->
-	<wave_n>3</wave_n>
+	<wave_n>0</wave_n>
 
 	<wave_amp0>0.06</wave_amp0>
 	<wave_period0>12.6</wave_period0>
