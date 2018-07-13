@@ -52,7 +52,9 @@ generate_messages(
   geometry_msgs
   nav_msgs
   std_msgs
-)
+  )
+
+
 
 ###################################
 ## catkin specific configuration ##
@@ -111,6 +113,10 @@ target_link_libraries(usv_gazebo_thrust_plugin
   ${Boost_LIBRARIES}
   ${Eigen_LIBRARIES}
   )
+
+add_dependencies(usv_gazebo_thrust_plugin
+  usv_gazebo_plugins_generate_messages_cpp
+)
 
 add_library(usv_gazebo_wind_plugin
   src/usv_gazebo_wind_plugin.cpp
