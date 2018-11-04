@@ -139,7 +139,7 @@ void UsvThrust::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 					 param_thrust_z_offset_);
 
   //initialize time and odometry position
-  prev_update_time_ = last_cmd_drive_time_ = this->world_->GetSimTime();
+  prev_update_time_ = last_cmd_drive_time_ = this->world_->SimTime();
 
   // Initialize the ROS node and subscribe to cmd_drive
   int argc = 0;
@@ -201,7 +201,7 @@ double UsvThrust::glfThrustCmd(double cmd)
 
 void UsvThrust::UpdateChild()
 {
-  common::Time time_now = this->world_->GetSimTime();
+  common::Time time_now = this->world_->SimTime();
   prev_update_time_ = time_now;
   
   // Enforce command timeout
@@ -239,25 +239,25 @@ void UsvThrust::UpdateChild()
 			    << " right: " << thrust_right);
 
   // Add torque
-  link_->AddRelativeTorque(math::Vector3(0,0,torque));
+  link_->AddRelativeTorque(ignition::math::Vector3d(0,0,torque));
 					 
   // Add input force with offset below vessel
-  math::Vector3 relpos(-1.0*param_boat_length_/2.0, 0.0 , 
+  ignition::math::Vector3d relpos(-1.0*param_boat_length_/2.0, 0.0 , 
 		       param_thrust_z_offset_);  // relative pos of thrusters
-  math::Vector3 inputforce3(thrust, 0,0);
+  ignition::math::Vector3d inputforce3(thrust, 0,0);
 
   // Get Pose
-  pose_ = link_->GetWorldPose();
+  pose_ = link_->WorldPose();
 
   //link_->AddLinkForce(inputforce3,relpos);
-  inputforce3 = pose_.rot.RotateVector(inputforce3);
+  inputforce3 = pose_.Rot().RotateVector(inputforce3);
   //link_->AddRelativeForce(inputforce3);
   link_->AddForceAtRelativePosition(inputforce3,relpos);
 }
 
 void UsvThrust::OnCmdDrive( const usv_gazebo_plugins::UsvDriveConstPtr &msg)
 {
-    last_cmd_drive_time_ = this->world_->GetSimTime();
+    last_cmd_drive_time_ = this->world_->SimTime();
     last_cmd_drive_left_ = msg->left;
     last_cmd_drive_right_ = msg->right;
 }

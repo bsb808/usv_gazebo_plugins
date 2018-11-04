@@ -15,8 +15,8 @@ void printrot(tf2::Matrix3x3 m){
 	 m[2][0],m[2][1],m[2][2]);
 }
 
-void printeuler(math::Vector3 e){
-  printf(" %f, %f, %f [rpy]\n",e.x,e.y,e.z);
+void printeuler(ignition::math::Vector3d e){
+  printf(" %f, %f, %f [rpy]\n",e.X(),e.Y(),e.Z());
 }
 void printq(tf2::Quaternion q){
   tf2::Vector3 v = q.getAxis();
@@ -24,17 +24,17 @@ void printq(tf2::Quaternion q){
   printf("%f, %f, %f, %f \n",v[0],v[1],v[2],w);
 }
 
-math::Vector3 q2rpy(tf2::Quaternion q){
+ignition::math::Vector3d q2rpy(tf2::Quaternion q){
     tf2::Matrix3x3 m(q);
-    math::Vector3 rpy;
+    ignition::math::Vector3d rpy;
     //m.getEulerYPR(rpy.z,rpy.y,rpy.x);
-    tf2::Matrix3x3(q).getEulerYPR(rpy.z,rpy.y,rpy.x);
+    tf2::Matrix3x3(q).getEulerYPR(rpy.Z(),rpy.Y(),rpy.X());
     return rpy;
 }
 
-tf2::Quaternion rpy2q(math::Vector3 rpy){
+tf2::Quaternion rpy2q(ignition::math::Vector3d rpy){
   tf2::Matrix3x3 m;
-  m.setEulerYPR(rpy.z,rpy.y,rpy.x);
+  m.setEulerYPR(rpy.Z(),rpy.Y(),rpy.X());
   printrot(m);
   tf2::Quaternion q;
   m.getRotation(q);
@@ -43,12 +43,12 @@ tf2::Quaternion rpy2q(math::Vector3 rpy){
 
 int main(int argc, char **argv){
 
-  //math::Vector3 T = math::Vector3(1.0,0.0,0.0);
+  //ignition::math::Vector3d T = ignition::math::Vector3d(1.0,0.0,0.0);
   float a = 0.1;
-  math::Vector3 T = math::Vector3(3*cos(a),0.0,-3*sin(a)).Normalize();
+  ignition::math::Vector3d T = ignition::math::Vector3d(3*cos(a),0.0,-3*sin(a)).Normalize();
   //T = T/T.GetLength();
-  math::Vector3 B = math::Vector3(0.0,10.0,0.0).Normalize();
-  math::Vector3 N = math::Vector3(sin(a),0.0,cos(a)).Normalize();
+  ignition::math::Vector3d B = ignition::math::Vector3d(0.0,10.0,0.0).Normalize();
+  ignition::math::Vector3d N = ignition::math::Vector3d(sin(a),0.0,cos(a)).Normalize();
   /*
   tf2::Matrix3x3 btn = tf2::Matrix3x3(T[0],B[0],N[0],
 				      T[1],B[1],N[1],
@@ -69,7 +69,7 @@ int main(int argc, char **argv){
   printeuler(q2rpy(wq));
   
   // Express vehicle frame as quat
-  math::Vector3 ve = math::Vector3(0.0,0.0,3.14159/2.0);
+  ignition::math::Vector3d ve = ignition::math::Vector3d(0.0,0.0,3.14159/2.0);
   printf("ve: ");
   printeuler(ve);
   tf2::Quaternion vq = rpy2q(ve);
@@ -92,11 +92,11 @@ int main(int argc, char **argv){
   printq(newatt2);
 
   
-  math::Vector3 ne = q2rpy(newatt2);
+  ignition::math::Vector3d ne = q2rpy(newatt2);
   printf("ne: \t");
   printeuler(ne);
 
-  math::Vector3 neweuler2;
+  ignition::math::Vector3d neweuler2;
   tf2::Matrix3x3 n(newatt2);
   n.getRPY(neweuler2.x,neweuler2.y,neweuler2.z);
   n.getEulerYPR(neweuler2.z,neweuler2.y,neweuler2.x);
@@ -104,7 +104,7 @@ int main(int argc, char **argv){
 	 neweuler2.y,neweuler2.z);
   // Using quat
   tf2::Quaternion newatt = g2btn*gatt;
-  math::Vector3 neweuler;
+  ignition::math::Vector3d neweuler;
   tf2::Matrix3x3 m(newatt);
   m.getEulerYPR(neweuler.z,neweuler.y,neweuler.x);
   printf("Veh in Wave: %f : %f : %f \n",neweuler.x,

@@ -25,6 +25,7 @@ along with this package.  If not, see <http://www.gnu.org/licenses/>.
 #include <sensor_msgs/JointState.h>
 #include <ros/time.h>
 #include <tf2/LinearMath/Transform.h>
+#include <ignition/math/Vector3.hh> 
 
 #include <usv_gazebo_plugins/usv_gazebo_wind_plugin.h>
 
@@ -112,21 +113,21 @@ void UsvWindPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   }
 
   if (_sdf->HasElement("wind_velocity_vector")){
-    param_wind_velocity_vector_ = _sdf->GetElement("wind_velocity_vector")->Get<math::Vector3>();
+    param_wind_velocity_vector_ = _sdf->GetElement("wind_velocity_vector")->Get<ignition::math::Vector3d>();
   }
   else{
-    param_wind_velocity_vector_ = math::Vector3(0,0,0);
+    param_wind_velocity_vector_ = ignition::math::Vector3d(0,0,0);
   }
-  ROS_INFO_STREAM("Wind velocity vector = "<<param_wind_velocity_vector_.x << " , " << param_wind_velocity_vector_.y << " , " << param_wind_velocity_vector_.z);
+  ROS_INFO_STREAM("Wind velocity vector = "<<param_wind_velocity_vector_.X() << " , " << param_wind_velocity_vector_.Y() << " , " << param_wind_velocity_vector_.Z());
 
 
   if (_sdf->HasElement("wind_coeff_vector")){
-    param_wind_coeff_vector_ = _sdf->GetElement("wind_coeff_vector")->Get<math::Vector3>();
+    param_wind_coeff_vector_ = _sdf->GetElement("wind_coeff_vector")->Get<ignition::math::Vector3d>();
   }
   else{
-    param_wind_coeff_vector_ = math::Vector3(0,0,0);
+    param_wind_coeff_vector_ = ignition::math::Vector3d(0,0,0);
   }
-  ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.x << " , " << param_wind_coeff_vector_.y << " , " << param_wind_coeff_vector_.z);
+  ROS_INFO_STREAM("Wind coefficient vector = "<<param_wind_coeff_vector_.X() << " , " << param_wind_coeff_vector_.Y() << " , " << param_wind_coeff_vector_.Z());
 
 
   // Initialize the ROS node and subscribe to cmd_drive
@@ -146,21 +147,21 @@ void UsvWindPlugin::UpdateChild()
 {
   // Wind
   // Transform wind from world coordinates to body coordinates
-  math::Vector3 relative_wind = link_->GetWorldPose().rot.GetInverse().RotateVector(param_wind_velocity_vector_);
+  ignition::math::Vector3d relative_wind = link_->WorldPose().Rot().Inverse().RotateVector(param_wind_velocity_vector_);
   // Calculate apparent wind
-  math::Vector3 apparent_wind = relative_wind - link_->GetRelativeLinearVel();
+  ignition::math::Vector3d apparent_wind = relative_wind - link_->RelativeLinearVel();
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Relative wind: " << relative_wind);
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Apparent wind: " << apparent_wind);
   // Calculate wind force - body coordinates
-  math::Vector3 wind_force(
-			   param_wind_coeff_vector_.x * relative_wind.x * abs(relative_wind.x),
-			   param_wind_coeff_vector_.y * relative_wind.y * abs(relative_wind.y),
-			   -2.0*param_wind_coeff_vector_.z * relative_wind.x * relative_wind.y);
+  ignition::math::Vector3d wind_force(
+			   param_wind_coeff_vector_.X() * relative_wind.X() * abs(relative_wind.X()),
+			   param_wind_coeff_vector_.Y() * relative_wind.Y() * abs(relative_wind.Y()),
+			   -2.0*param_wind_coeff_vector_.Z() * relative_wind.X() * relative_wind.Y());
   
   
   // Add forces/torques to link at CG
-  link_->AddRelativeForce(math::Vector3(wind_force.x, wind_force.y, 0.0));
-  link_->AddRelativeTorque(math::Vector3(0.0,0.0,wind_force.z));  
+  link_->AddRelativeForce(ignition::math::Vector3d(wind_force.X(), wind_force.Y(), 0.0));
+  link_->AddRelativeTorque(ignition::math::Vector3d(0.0,0.0,wind_force.Z()));  
 }
 
 void UsvWindPlugin::spin()

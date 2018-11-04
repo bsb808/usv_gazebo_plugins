@@ -41,6 +41,7 @@ along with this package.  If not, see <http://www.gnu.org/licenses/>.
 // Custom Callback Queue
 #include <ros/callback_queue.h>
 #include <ros/advertise_options.h>
+#include <ignition/math/Vector3.hh> 
 
 namespace gazebo
 {
@@ -82,10 +83,10 @@ namespace gazebo
     physics::LinkPtr link_;
     
     /*! Wind velocity in Gazebo coordinates [m/s] */
-    math::Vector3 param_wind_velocity_vector_;
+    ignition::math::Vector3d param_wind_velocity_vector_;
 
     /*! Wind force coefficients */
-    math::Vector3 param_wind_coeff_vector_;
+    ignition::math::Vector3d param_wind_coeff_vector_;
     
     boost::thread *spinner_thread_;
     

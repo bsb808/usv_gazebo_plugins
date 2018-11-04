@@ -31,6 +31,7 @@ along with this package.  If not, see <http://www.gnu.org/licenses/>.
 #include <gazebo/common/common.hh>
 #include <gazebo/physics/physics.hh>
 //#include <gazebo_plugins/gazebo_ros_utils.h>
+#include <ignition/math/Vector3.hh> 
 
 //ROS
 #include <usv_gazebo_plugins/UsvDrive.h>
@@ -104,7 +105,7 @@ namespace gazebo
       optionally specified by the bodyName parameter,
       The states are taken from this link and forces applied to this link.*/
     physics::LinkPtr link_;
-    math::Pose pose_;
+    ignition::math::Pose3d pose_;
     /*! Timeout for recieving Drive commands [s]*/
     double cmd_timeout_;
     common::Time prev_update_time_;

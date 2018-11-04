@@ -5,7 +5,7 @@ project(usv_gazebo_plugins)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS 
-  cmake_modules
+	#  cmake_modules
   gazebo_plugins
   gazebo_ros
   geometry_msgs
@@ -28,7 +28,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 find_package(Boost REQUIRED COMPONENTS thread)
 
 ## Eigen
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 #include_directories(${Eigen_INCLUDE_DIRS})
 #include_directories(${EIGEN_INCLUDE_DIRS}) 
 #add_definitions(${EIGEN_DEFINITIONS})
@@ -85,7 +85,7 @@ include_directories( include
   ${Boost_INCLUDE_DIR} 
   ${catkin_INCLUDE_DIRS} 
   ${GAZEBO_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
   )
 link_directories(
   ${GAZEBO_LIBRARY_DIRS}
@@ -100,7 +100,7 @@ target_link_libraries(usv_gazebo_dynamics_plugin
   ${catkin_LIBRARIES}
   ${GAZEBO_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${Eigen_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
   )
 
 add_library(usv_gazebo_thrust_plugin
@@ -111,7 +111,7 @@ target_link_libraries(usv_gazebo_thrust_plugin
   ${catkin_LIBRARIES}
   ${GAZEBO_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${Eigen_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
   )
 
 add_dependencies(usv_gazebo_thrust_plugin
@@ -126,7 +126,7 @@ target_link_libraries(usv_gazebo_wind_plugin
   ${catkin_LIBRARIES}
   ${GAZEBO_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${Eigen_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
 )
 
 
@@ -145,7 +145,7 @@ target_link_libraries(frame_test
   ${catkin_LIBRARIES}
   ${GAZEBO_LIBRARIES}
   ${Boost_LIBRARIES}
-  ${Eigen_LIBRARIES}
+  ${EIGEN3_LIBRARIES}
   )
   
 #############
