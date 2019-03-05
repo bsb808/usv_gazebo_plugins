@@ -4,7 +4,7 @@
     <!--Gazebo Plugin for simulating WAM-V dynamics-->
     <gazebo >
       <plugin name="usv_thrust_${name}" filename="libusv_gazebo_thrust_plugin.so">
-	<bodyName>base_link</bodyName>
+	<bodyName>base_footprint</bodyName>
 
 	<!-- Which thruster curve to use -->
 	<mappingType>1</mappingType>

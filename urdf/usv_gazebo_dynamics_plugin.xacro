@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
-  <xacro:macro name="usv_gazebo" params="name">
+  <xacro:macro name="usv_dynamics_gazebo" params="name">
     <!--Gazebo Plugin for simulating Kingfisher dynamics-->
     <gazebo >
       <!--<plugin name="heron_dynamic" filename="libheron_gazebo_plugins.so">-->
