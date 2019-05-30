@@ -163,7 +163,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   
   // Wave parameters
   std::ostringstream buf;
-  math::Vector2d tmpm;
+  ignition::math::Vector2d tmpm;
   std::vector<float> tmpv(2,0);
   param_wave_n_ = _sdf->GetElement("wave_n")->Get<int>();
   for (int ii=0; ii < param_wave_n_; ii++){
@@ -176,9 +176,9 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
     param_wave_periods_.push_back(_sdf->GetElement(buf.str())->Get<float>());
     buf.str("");
     buf<<"wave_direction"<<ii;
-    tmpm=_sdf->GetElement(buf.str())->Get<math::Vector2d>();
-    tmpv[0] = tmpm.x;
-    tmpv[1] = tmpm.y;
+    tmpm=_sdf->GetElement(buf.str())->Get<ignition::math::Vector2d>();
+    tmpv[0] = tmpm.X();
+    tmpv[1] = tmpm.Y();
     param_wave_directions_.push_back(tmpv);
     ROS_INFO_STREAM("Wave Direction "<<ii<<": "<<param_wave_directions_[ii][0]
 		    << ", " << param_wave_directions_[ii][1]);
@@ -187,8 +187,8 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
 
   // Get inertia and mass of vessel
-  math::Vector3 inertia = link_->GetInertial()->GetPrincipalMoments();
-  double mass = link_->GetInertial()->GetMass();
+  ignition::math::Vector3d inertia = link_->GetInertial()->PrincipalMoments();
+  double mass = link_->GetInertial()->Mass();
 
   // Report some of the pertinent parameters for verification
   ROS_INFO("USV Dynamics Parameters: From URDF XACRO model definition");
@@ -199,7 +199,7 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
   ROS_INFO("USV Dynamics Parameters: Plugin Parameters");
 
   //initialize time and odometry position
-  prev_update_time_ = this->world_->GetSimTime();
+  prev_update_time_ = this->world_->SimTime();
 
   // Initialize the ROS node
   int argc = 0;
@@ -248,36 +248,36 @@ void UsvPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
 void UsvPlugin::UpdateChild()
 {
-  common::Time time_now = this->world_->GetSimTime();
+  common::Time time_now = this->world_->SimTime();
   //common::Time step_time = time_now - prev_update_time_;
   double dt = (time_now - prev_update_time_).Double();
   prev_update_time_ = time_now;
   
   // Get Pose/Orientation from Gazebo (if no state subscriber is active)
-  pose_ = link_->GetWorldPose();
-  euler_ = pose_.rot.GetAsEuler();
+  pose_ = link_->WorldPose();
+  euler_ = pose_.Rot().Euler();
 
   // Get body-centered linear and angular rates
-  vel_linear_body_ = link_->GetRelativeLinearVel();  
+  vel_linear_body_ = link_->RelativeLinearVel();  
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel linear: " << vel_linear_body_);
-  vel_angular_body_ = link_->GetRelativeAngularVel();
+  vel_angular_body_ = link_->RelativeAngularVel();
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Vel angular: " << vel_angular_body_);
   // Estimate the linear and angular accelerations.
   // Note the the GetRelativeLinearAccel() and AngularAccel() functions
   // appear to be unreliable
-  math::Vector3 accel_linear_body = (vel_linear_body_ - prev_lin_vel_) /dt;
+  ignition::math::Vector3d accel_linear_body = (vel_linear_body_ - prev_lin_vel_) /dt;
   prev_lin_vel_ = vel_linear_body_;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel linear: " << accel_linear_body);
-  math::Vector3 accel_angular_body = (vel_angular_body_ - prev_ang_vel_) /dt;
+  ignition::math::Vector3d accel_angular_body = (vel_angular_body_ - prev_ang_vel_) /dt;
   prev_ang_vel_ = vel_angular_body_;
   ROS_DEBUG_STREAM_THROTTLE(0.5,"Accel angular: " << accel_angular_body);
 
   // Create state and derivative of state (accelerations)
-  state_dot_ << accel_linear_body.x, accel_linear_body.y, accel_linear_body.z, 
-    accel_angular_body.x, accel_angular_body.y, accel_angular_body.z;
+  state_dot_ << accel_linear_body.X(), accel_linear_body.Y(), accel_linear_body.Z(), 
+    accel_angular_body.X(), accel_angular_body.Y(), accel_angular_body.Z();
 
-  state_ << vel_linear_body_.x, vel_linear_body_.y, vel_linear_body_.z, 
-    vel_angular_body_.x, vel_angular_body_.y, vel_angular_body_.z;
+  state_ << vel_linear_body_.X(), vel_linear_body_.Y(), vel_linear_body_.Z(), 
+    vel_angular_body_.X(), vel_angular_body_.Y(), vel_angular_body_.Z();
 
   // Added Mass
   amassVec_ = -1.0*Ma_*state_dot_;
@@ -285,21 +285,21 @@ void UsvPlugin::UpdateChild()
   ROS_DEBUG_STREAM_THROTTLE(1.0,"amassVec :\n" << amassVec_);
   
   // Coriolis - added mass components
-  Cmat_(0,5) = param_Y_dot_v_ * vel_linear_body_.y;
-  Cmat_(1,5) = param_X_dot_u_ * vel_linear_body_.x;
-  Cmat_(5,0) = param_Y_dot_v_ * vel_linear_body_.y;
-  Cmat_(5,1) = param_X_dot_u_ * vel_linear_body_.x;
+  Cmat_(0,5) = param_Y_dot_v_ * vel_linear_body_.Y();
+  Cmat_(1,5) = param_X_dot_u_ * vel_linear_body_.X();
+  Cmat_(5,0) = param_Y_dot_v_ * vel_linear_body_.Y();
+  Cmat_(5,1) = param_X_dot_u_ * vel_linear_body_.X();
   Cvec_ = -1.0*Cmat_*state_;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Cvec :\n" << Cvec_);
 
   // Drag
   //Eigen::MatrixXd Dmat = Eigen::MatrixXd(6,6);
-  Dmat_(0,0) = param_X_u_ + param_X_uu_*std::abs(vel_linear_body_.x);
-  Dmat_(1,1) = param_Y_v_ + param_Y_vv_*std::abs(vel_linear_body_.y);
+  Dmat_(0,0) = param_X_u_ + param_X_uu_*std::abs(vel_linear_body_.X());
+  Dmat_(1,1) = param_Y_v_ + param_Y_vv_*std::abs(vel_linear_body_.Y());
   Dmat_(2,2) = param_Z_w_;
   Dmat_(3,3) = param_K_p_;
   Dmat_(4,4) = param_M_q_;
-  Dmat_(5,5) = param_N_r_ + param_N_rr_*std::abs(vel_angular_body_.z);
+  Dmat_(5,5) = param_N_r_ + param_N_rr_*std::abs(vel_angular_body_.Z());
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dmat :\n" << Dmat_);
   Dvec_ = -1.0*Dmat_*state_;
   ROS_DEBUG_STREAM_THROTTLE(1.0,"Dvec :\n" << Dvec_);
@@ -307,7 +307,7 @@ void UsvPlugin::UpdateChild()
   // Vehicle frame transform
   tf2::Quaternion vq = tf2::Quaternion();
   tf2::Matrix3x3 m;
-  m.setEulerYPR(euler_.z,euler_.y,euler_.x);
+  m.setEulerYPR(euler_.Z(),euler_.Y(),euler_.X());
   m.getRotation(vq);
   tf2::Transform xform_v = tf2::Transform(vq);
 
@@ -317,14 +317,14 @@ void UsvPlugin::UpdateChild()
   ROS_DEBUG_STREAM_THROTTLE(1.0,"forceSum :\n" << forceSum);
   
   // Add dynamic forces/torques to link at CG
-  link_->AddRelativeForce(math::Vector3(forceSum(0),forceSum(1),forceSum(2)));
-  link_->AddRelativeTorque(math::Vector3(forceSum(3),forceSum(4),forceSum(5)));
+  link_->AddRelativeForce(ignition::math::Vector3d(forceSum(0),forceSum(1),forceSum(2)));
+  link_->AddRelativeTorque(ignition::math::Vector3d(forceSum(3),forceSum(4),forceSum(5)));
 
   // Distribute upward buoyancy force
   
   float ddx, ddy, ddz, buoy_force;
   double w, k, dz, Ddotx;
-  math::Vector3 X;  // location of vehicle base link
+  ignition::math::Vector3d X;  // location of vehicle base link
   tf2::Vector3 bpnt(0,0,0);     // grid points on boat
   tf2::Vector3 bpnt_w(0,0,0);   // in world coordinates
 
@@ -345,17 +345,17 @@ void UsvPlugin::UpdateChild()
       ROS_DEBUG_STREAM_THROTTLE(1.0,"in water frame"<<bpnt_w.x() <<","<<bpnt_w.y() <<","<<bpnt_w.z());
 
       // Vertical location of boat grid point in world frame
-      ddz = pose_.pos.z+bpnt_w.z();
-      ROS_DEBUG_STREAM("Z, pose: " << pose_.pos.z <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
+      ddz = pose_.Pos().Z()+bpnt_w.z();
+      ROS_DEBUG_STREAM("Z, pose: " << pose_.Pos().Z() <<", bpnt: "<<bpnt_w.z() << ", dd: " << ddz);
       
       // Find vertical displacement of wave field
-      X.x = pose_.pos.x+bpnt_w.x();  // World location of grid point
-      X.y = pose_.pos.y+bpnt_w.y();
+      X.X() = pose_.Pos().X()+bpnt_w.x();  // World location of grid point
+      X.Y() = pose_.Pos().Y()+bpnt_w.y();
       // sum vertical dsplacement over all waves
       dz = 0.0;
       for (int ii=0; ii < param_wave_n_; ii++){
-	Ddotx=param_wave_directions_[ii][0]*X.x
-	  +param_wave_directions_[ii][1]*X.y;
+	Ddotx=param_wave_directions_[ii][0]*X.X()
+	  +param_wave_directions_[ii][1]*X.Y();
 	w = 2.0*3.14159 / param_wave_periods_[ii];
 	k = w*w/9.81;
 	dz += param_wave_amps_[ii]*cos(k*Ddotx-w*time_now.Float());;	
@@ -368,8 +368,8 @@ void UsvPlugin::UpdateChild()
       // Apply force at grid point
       // From web, Appears that position is in the link frame
       // and force is in world frame
-      link_->AddForceAtRelativePosition(math::Vector3(0,0,buoy_force),
-					math::Vector3(bpnt.x(),bpnt.y(),bpnt.z()));
+      link_->AddForceAtRelativePosition(ignition::math::Vector3d(0,0,buoy_force),
+					ignition::math::Vector3d(bpnt.x(),bpnt.y(),bpnt.z()));
     }
   }
 }
